@@ -1,0 +1,363 @@
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-sans); }
+.guide { padding: 1rem 0; }
+.nav { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 1.5rem; }
+.nav-btn { font-size: 13px; padding: 6px 14px; border-radius: 20px; border: 0.5px solid var(--color-border-secondary); background: var(--color-background-primary); color: var(--color-text-secondary); cursor: pointer; transition: all 0.15s; font-family: var(--font-sans); }
+.nav-btn:hover { background: var(--color-background-secondary); color: var(--color-text-primary); }
+.nav-btn.active { background: #3C3489; color: #CECBF6; border-color: #3C3489; }
+.section { display: none; }
+.section.active { display: block; }
+.card { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+.card-title { font-size: 15px; font-weight: 500; color: var(--color-text-primary); margin-bottom: 0.5rem; }
+.tag { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 500; margin-bottom: 8px; }
+.tag-purple { background: #EEEDFE; color: #3C3489; }
+.tag-teal { background: #E1F5EE; color: #0F6E56; }
+.tag-amber { background: #FAEEDA; color: #854F0B; }
+.tag-coral { background: #FAECE7; color: #993C1D; }
+.tag-blue { background: #E6F1FB; color: #185FA5; }
+.tag-pink { background: #FBEAF0; color: #993556; }
+.tag-green { background: #EAF3DE; color: #3B6D11; }
+.item { font-size: 14px; color: var(--color-text-primary); line-height: 1.6; padding: 6px 0; border-bottom: 0.5px solid var(--color-border-tertiary); }
+.item:last-child { border-bottom: none; }
+.item strong { font-weight: 500; color: var(--color-text-primary); }
+.item .muted { color: var(--color-text-secondary); font-size: 13px; display: block; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }
+.grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
+.metric-card { background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 0.85rem 1rem; }
+.metric-label { font-size: 12px; color: var(--color-text-secondary); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.03em; }
+.metric-value { font-size: 18px; font-weight: 500; color: var(--color-text-primary); }
+.formula { background: var(--color-background-secondary); border-left: 2px solid #534AB7; padding: 8px 12px; border-radius: 0 var(--border-radius-md) var(--border-radius-md) 0; font-size: 13px; font-family: var(--font-mono); color: var(--color-text-primary); margin: 8px 0; }
+.tip { background: #E1F5EE; border-radius: var(--border-radius-md); padding: 8px 12px; font-size: 13px; color: #0F6E56; margin-top: 8px; }
+.warn { background: #FAEEDA; border-radius: var(--border-radius-md); padding: 8px 12px; font-size: 13px; color: #854F0B; margin-top: 8px; }
+h3 { font-size: 14px; font-weight: 500; color: var(--color-text-secondary); margin: 1rem 0 0.5rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.matrix { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 8px; height: 220px; margin: 8px 0; }
+.quad { border-radius: var(--border-radius-md); padding: 10px; font-size: 13px; display: flex; flex-direction: column; justify-content: space-between; }
+.q1 { background: #E1F5EE; color: #0F6E56; }
+.q2 { background: #EEEDFE; color: #3C3489; }
+.q3 { background: #F1EFE8; color: #5F5E5A; }
+.q4 { background: #FAECE7; color: #993C1D; }
+.quad-title { font-weight: 500; font-size: 12px; }
+.quad-desc { font-size: 12px; opacity: 0.85; }
+.axis-label { font-size: 11px; color: var(--color-text-secondary); text-align: center; margin: 2px 0; }
+.section-intro { font-size: 14px; color: var(--color-text-secondary); line-height: 1.6; margin-bottom: 1rem; padding: 0.75rem 1rem; background: var(--color-background-secondary); border-radius: var(--border-radius-md); }
+</style>
+
+<h2 class="sr-only">Guía de conceptos clave para entrevistas de Product Manager</h2>
+
+<div class="guide">
+  <nav class="nav">
+    <button class="nav-btn active" onclick="show('discovery')">Discovery</button>
+    <button class="nav-btn" onclick="show('priorization')">Priorización</button>
+    <button class="nav-btn" onclick="show('frameworks')">SAFe · GTM · PLG</button>
+    <button class="nav-btn" onclick="show('analytics')">Analytics</button>
+    <button class="nav-btn" onclick="show('design')">UX/UI Design</button>
+    <button class="nav-btn" onclick="show('extras')">Conceptos extra</button>
+  </nav>
+
+  <!-- DISCOVERY -->
+  <div id="discovery" class="section active">
+    <div class="section-intro">El product discovery responde a: ¿Estamos construyendo el producto correcto? Valida problema, usuario y solución antes de escribir una sola línea de código.</div>
+    <div class="grid2">
+      <div class="card">
+        <span class="tag tag-purple">Entender al usuario</span>
+        <div class="card-title">Entrevistas de usuario</div>
+        <div class="item"><strong>¿Qué es?</strong> <span class="muted">Conversaciones 1:1 para entender contexto, motivaciones y frustraciones del usuario.</span></div>
+        <div class="item"><strong>Tip de entrevista:</strong> <span class="muted">Pregunta por comportamientos pasados, no opiniones futuras. "Cuéntame la última vez que..." en vez de "¿Usarías X?"</span></div>
+      </div>
+      <div class="card">
+        <span class="tag tag-teal">Validar hipótesis</span>
+        <div class="card-title">Jobs To Be Done (JTBD)</div>
+        <div class="item"><strong>¿Qué es?</strong> <span class="muted">Los usuarios no compran productos, contratan soluciones para un "trabajo" que necesitan hacer.</span></div>
+        <div class="formula">Cuando [situación], quiero [motivación], para [resultado esperado]</div>
+      </div>
+      <div class="card">
+        <span class="tag tag-amber">Mapear experiencia</span>
+        <div class="card-title">Customer Journey Map</div>
+        <div class="item"><strong>¿Qué es?</strong> <span class="muted">Visualización de todos los puntos de contacto del usuario con el producto, desde que descubre el problema hasta post-compra.</span></div>
+        <div class="item"><strong>Identifica:</strong> <span class="muted">Pain points, momentos de duda, oportunidades de mejora.</span></div>
+      </div>
+      <div class="card">
+        <span class="tag tag-coral">Rápido y barato</span>
+        <div class="card-title">Prototipos y MVPs</div>
+        <div class="item"><strong>Prototype:</strong> <span class="muted">Representación de la solución para testear con usuarios antes de construir. Puede ser en papel o Figma.</span></div>
+        <div class="item"><strong>MVP:</strong> <span class="muted">Mínima versión del producto que valida la hipótesis más importante del negocio.</span></div>
+      </div>
+      <div class="card">
+        <span class="tag tag-blue">Cuantificar</span>
+        <div class="card-title">Surveys y análisis de datos</div>
+        <div class="item"><strong>Surveys:</strong> <span class="muted">Para validar hallazgos cualitativos a escala. Deben ser cortos y con preguntas cerradas.</span></div>
+        <div class="item"><strong>Data analysis:</strong> <span class="muted">Funnel drops, heatmaps, grabaciones de sesión (Hotjar, FullStory).</span></div>
+      </div>
+      <div class="card">
+        <span class="tag tag-pink">Validar mercado</span>
+        <div class="card-title">Desk Research &amp; Benchmarking</div>
+        <div class="item"><strong>¿Qué es?</strong> <span class="muted">Investigación de mercado, competencia, tendencias y reportes de la industria sin salir de la oficina.</span></div>
+        <div class="item"><strong>Uso:</strong> <span class="muted">Contexto rápido antes de las entrevistas de usuario o para validar el tamaño de mercado.</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PRIORIZACIÓN -->
+  <div id="priorization" class="section">
+    <div class="section-intro">Priorizar es decir NO a cosas buenas para poder decir SÍ a las mejores. Estos frameworks te dan estructura y argumentos para esa decisión.</div>
+    
+    <h3>Frameworks cuantitativos</h3>
+    <div class="grid2">
+      <div class="card">
+        <span class="tag tag-purple">Puntuación ponderada</span>
+        <div class="card-title">RICE Score</div>
+        <div class="formula">RICE = (Reach × Impact × Confidence) / Effort</div>
+        <div class="item"><strong>Reach:</strong> <span class="muted">¿Cuántos usuarios impacta en un período? (número absoluto)</span></div>
+        <div class="item"><strong>Impact:</strong> <span class="muted">¿Qué tanto mueve la aguja? (escala 0.25 - 3x)</span></div>
+        <div class="item"><strong>Confidence:</strong> <span class="muted">¿Qué tan seguros estás de las estimaciones? (% de 0 a 100)</span></div>
+        <div class="item"><strong>Effort:</strong> <span class="muted">Semanas-persona de trabajo requerido</span></div>
+        <div class="tip">Mejor para cuando tienes muchos features compitiendo y necesitas objetividad.</div>
+      </div>
+      <div class="card">
+        <span class="tag tag-teal">Puntuación simple</span>
+        <div class="card-title">ICE Score</div>
+        <div class="formula">ICE = Impact + Confidence + Ease</div>
+        <div class="item"><strong>Impact:</strong> <span class="muted">¿Qué tan grande es el impacto esperado? (1-10)</span></div>
+        <div class="item"><strong>Confidence:</strong> <span class="muted">¿Qué tan seguro estás? (1-10)</span></div>
+        <div class="item"><strong>Ease:</strong> <span class="muted">¿Qué tan fácil es de implementar? (1-10)</span></div>
+        <div class="tip">Más ágil que RICE. Ideal para equipos en etapa temprana o decisiones rápidas.</div>
+      </div>
+    </div>
+
+    <h3>Frameworks cualitativos</h3>
+    <div class="grid2">
+      <div class="card">
+        <span class="tag tag-amber">Clasificación por valor</span>
+        <div class="card-title">MoSCoW</div>
+        <div class="item"><strong>Must have:</strong> <span class="muted">Sin esto, el producto no funciona o no tiene sentido.</span></div>
+        <div class="item"><strong>Should have:</strong> <span class="muted">Importante, pero existe un workaround temporal.</span></div>
+        <div class="item"><strong>Could have:</strong> <span class="muted">Nice-to-have. Si hay tiempo y capacidad.</span></div>
+        <div class="item"><strong>Won't have (this time):</strong> <span class="muted">Fuera del alcance actual, pero no se descarta para siempre.</span></div>
+        <div class="tip">Muy útil para alinear expectativas con stakeholders en planificación de releases.</div>
+      </div>
+      <div class="card">
+        <span class="tag tag-coral">Cuadrante visual</span>
+        <div class="card-title">Matriz Impacto vs Esfuerzo</div>
+        <div class="matrix">
+          <div class="quad q2">
+            <span class="quad-title">Alto impacto · Bajo esfuerzo</span>
+            <span class="quad-desc">Quick wins — prioriza ya</span>
+          </div>
+          <div class="quad q1">
+            <span class="quad-title">Alto impacto · Alto esfuerzo</span>
+            <span class="quad-desc">Proyectos grandes — planifica</span>
+          </div>
+          <div class="quad q3">
+            <span class="quad-title">Bajo impacto · Bajo esfuerzo</span>
+            <span class="quad-desc">Fill-ins — si hay tiempo</span>
+          </div>
+          <div class="quad q4">
+            <span class="quad-title">Bajo impacto · Alto esfuerzo</span>
+            <span class="quad-desc">Evitar — no lo hagas</span>
+          </div>
+        </div>
+        <div class="axis-label">← Esfuerzo →</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FRAMEWORKS -->
+  <div id="frameworks" class="section">
+    <div class="section-intro">Tres grandes marcos que aparecen frecuentemente en entrevistas de PM senior. Entenderlos en profundidad diferencia candidatos.</div>
+    <div class="card">
+      <span class="tag tag-purple">Metodología ágil a escala</span>
+      <div class="card-title">SAFe — Scaled Agile Framework</div>
+      <div class="item"><strong>¿Qué es?</strong> <span class="muted">Framework para aplicar Agile en organizaciones grandes con múltiples equipos trabajando en el mismo producto.</span></div>
+      <div class="item"><strong>Estructura clave:</strong> <span class="muted">Teams → Agile Release Train (ART) → Solution Train → Portfolio. Los equipos sincronizan en un PI Planning (Program Increment) de 8-12 semanas.</span></div>
+      <div class="item"><strong>PI Planning:</strong> <span class="muted">Evento de 2 días donde todos los equipos del ART alinean objetivos para el siguiente PI. El PM define las Features prioritarias.</span></div>
+      <div class="item"><strong>Rol del PM en SAFe:</strong> <span class="muted">El Product Manager define el vision y prioriza el Program Backlog (Epics y Features). El Product Owner gestiona el Team Backlog (Stories).</span></div>
+      <div class="warn">En entrevistas: si mencionan "trabajo con múltiples squads" o "empresa grande", pregunta si usan SAFe o un modelo similar. Demuestra madurez.</div>
+    </div>
+    <div class="card">
+      <span class="tag tag-teal">Estrategia de lanzamiento</span>
+      <div class="card-title">Go-To-Market (GTM)</div>
+      <div class="item"><strong>¿Qué es?</strong> <span class="muted">Plan que define cómo llevar un producto al mercado: quién lo compra, cómo lo descubren, cuánto cuesta y cómo se entrega.</span></div>
+      <div class="item"><strong>Componentes esenciales:</strong>
+        <span class="muted">Target customer (ICP), Value proposition, Pricing &amp; packaging, Canales de distribución, Estrategia de ventas/marketing, Métricas de éxito del lanzamiento.</span>
+      </div>
+      <div class="item"><strong>ICP:</strong> <span class="muted">Ideal Customer Profile. El tipo de cliente que más se beneficia del producto y tiene más probabilidad de comprar.</span></div>
+      <div class="formula">GTM = Quién comprará + Por qué + Cómo lo encontrarán + A qué precio</div>
+    </div>
+    <div class="card">
+      <span class="tag tag-green">Crecimiento impulsado por producto</span>
+      <div class="card-title">PLG — Product-Led Growth</div>
+      <div class="item"><strong>¿Qué es?</strong> <span class="muted">Estrategia donde el producto mismo es el principal motor de adquisición, retención y expansión. Los usuarios prueban antes de comprar.</span></div>
+      <div class="item"><strong>Modelos comunes:</strong> <span class="muted">Freemium (Spotify, Notion), Free trial (Figma), Viral (Slack, Dropbox).</span></div>
+      <div class="item"><strong>Métricas clave en PLG:</strong> <span class="muted">Time to Value (TTV), Product Qualified Lead (PQL), Activation rate, Expansion revenue (NRR).</span></div>
+      <div class="item"><strong>Aha moment:</strong> <span class="muted">El instante en que el usuario entiende el valor del producto. Diseñarlo y medirlo es tarea central del PM en PLG.</span></div>
+      <div class="tip">Contrario al Sales-Led Growth donde un vendedor convence al cliente antes de que toque el producto.</div>
+    </div>
+  </div>
+
+  <!-- ANALYTICS -->
+  <div id="analytics" class="section">
+    <div class="section-intro">Las métricas son el lenguaje del PM. Necesitas saber qué medir, por qué y cómo interpretarlo. No todas las métricas importan igual — aprende a separar las que mueven el negocio de las vanity metrics.</div>
+
+    <h3>Métricas de negocio</h3>
+    <div class="grid3">
+      <div class="metric-card">
+        <div class="metric-label">MRR / ARR</div>
+        <div class="metric-value">Revenue recurrente</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">CAC</div>
+        <div class="metric-value">Costo de adquisición</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">LTV</div>
+        <div class="metric-value">Valor de vida del cliente</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Churn Rate</div>
+        <div class="metric-value">Tasa de cancelación</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">NRR</div>
+        <div class="metric-value">Net Revenue Retention</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Gross Margin</div>
+        <div class="metric-value">Margen bruto</div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:1rem">
+      <div class="item"><strong>LTV:CAC ratio:</strong> <span class="muted">Debe ser mínimo 3:1. Si es menor, adquirir clientes te cuesta más de lo que generan.</span></div>
+      <div class="item"><strong>NRR &gt; 100%:</strong> <span class="muted">Significa que los clientes actuales crecen más rápido que los que se van. Señal de un producto muy sano.</span></div>
+    </div>
+
+    <h3>Métricas de producto (AARRR)</h3>
+    <div class="card">
+      <div class="item"><strong>Acquisition:</strong> <span class="muted">¿Cómo llegan los usuarios? Canales, tráfico, CPC.</span></div>
+      <div class="item"><strong>Activation:</strong> <span class="muted">¿El usuario vivió el valor del producto por primera vez? Activation rate, Time to First Value.</span></div>
+      <div class="item"><strong>Retention:</strong> <span class="muted">¿Los usuarios vuelven? DAU/MAU, Cohort retention, Rolling retention.</span></div>
+      <div class="item"><strong>Referral:</strong> <span class="muted">¿Los usuarios recomiendan el producto? NPS, Viral coefficient, Invitaciones enviadas.</span></div>
+      <div class="item"><strong>Revenue:</strong> <span class="muted">¿Los usuarios convierten y pagan? Conversion rate, ARPU, upgrade rate.</span></div>
+    </div>
+
+    <h3>Métricas de usuario (comportamiento)</h3>
+    <div class="grid2">
+      <div class="card">
+        <div class="item"><strong>DAU / WAU / MAU:</strong> <span class="muted">Usuarios activos diarios, semanales, mensuales.</span></div>
+        <div class="item"><strong>Stickiness:</strong> <span class="muted">DAU / MAU. Qué tan frecuente es el uso. &gt;20% es bueno.</span></div>
+        <div class="item"><strong>Session depth:</strong> <span class="muted">Páginas vistas por sesión, tiempo en app, acciones por sesión.</span></div>
+      </div>
+      <div class="card">
+        <div class="item"><strong>NPS:</strong> <span class="muted">Net Promoter Score. Escala 0-10: Promotores (9-10) - Detractores (0-6).</span></div>
+        <div class="item"><strong>CSAT:</strong> <span class="muted">Customer Satisfaction Score. Satisfacción puntual post-interacción.</span></div>
+        <div class="item"><strong>Feature adoption:</strong> <span class="muted">% de usuarios activos que usan una feature específica.</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <span class="tag tag-coral">Importante distinguir</span>
+      <div class="card-title">North Star Metric vs Vanity Metrics</div>
+      <div class="item"><strong>North Star:</strong> <span class="muted">La métrica única que mejor captura el valor que el producto entrega a los usuarios. Ej: Spotify → tiempo escuchando música.</span></div>
+      <div class="item"><strong>Vanity metrics:</strong> <span class="muted">Métricas que se ven bien pero no predicen el éxito real. Ej: descargas totales, usuarios registrados sin activación.</span></div>
+    </div>
+  </div>
+
+  <!-- DESIGN -->
+  <div id="design" class="section">
+    <div class="section-intro">Un buen PM no diseña, pero sí evalúa y argumenta sobre diseño. Conocer estas heurísticas te permite dar feedback útil al equipo y defender decisiones de UX ante stakeholders.</div>
+    
+    <h3>10 Heurísticas de Nielsen</h3>
+    <div class="grid2">
+      <div class="card">
+        <div class="item"><strong>1. Visibilidad del estado del sistema</strong><span class="muted">El usuario siempre debe saber qué está pasando. Ej: barra de progreso, estados de carga.</span></div>
+        <div class="item"><strong>2. Match con el mundo real</strong><span class="muted">Habla el idioma del usuario, no jerga técnica. Usa metáforas familiares.</span></div>
+        <div class="item"><strong>3. Control y libertad del usuario</strong><span class="muted">Siempre debe haber un "deshacer". Los errores deben ser reversibles.</span></div>
+        <div class="item"><strong>4. Consistencia y estándares</strong><span class="muted">Mismo elemento = mismo comportamiento. No reinventes patrones conocidos.</span></div>
+        <div class="item"><strong>5. Prevención de errores</strong><span class="muted">Mejor prevenir que mostrar mensajes de error. Confirmaciones antes de acciones destructivas.</span></div>
+      </div>
+      <div class="card">
+        <div class="item"><strong>6. Reconocimiento &gt; Memorización</strong><span class="muted">El usuario no debería tener que recordar cómo usar el producto. La información debe estar visible.</span></div>
+        <div class="item"><strong>7. Flexibilidad y eficiencia</strong><span class="muted">Atajos de teclado, flujos avanzados para usuarios expertos sin perjudicar a novatos.</span></div>
+        <div class="item"><strong>8. Diseño minimalista</strong><span class="muted">Cada elemento visual compite por atención. Elimina lo que no agrega valor.</span></div>
+        <div class="item"><strong>9. Ayuda para errores</strong><span class="muted">Los mensajes de error deben describir el problema y sugerir una solución concreta.</span></div>
+        <div class="item"><strong>10. Ayuda y documentación</strong><span class="muted">Si se necesita, debe ser fácil de encontrar y orientada a la tarea del usuario.</span></div>
+      </div>
+    </div>
+
+    <h3>Mejores prácticas UX/UI</h3>
+    <div class="grid2">
+      <div class="card">
+        <span class="tag tag-blue">UX</span>
+        <div class="item"><strong>Affordance:</strong> <span class="muted">El diseño debe sugerir cómo se usa. Un botón debe verse clicable, un campo editable.</span></div>
+        <div class="item"><strong>Information architecture:</strong> <span class="muted">Organización lógica del contenido. Card sorting y tree testing para validarla.</span></div>
+        <div class="item"><strong>Usability testing:</strong> <span class="muted">5 usuarios detectan el 85% de los problemas de usabilidad. No necesitas más para iterar.</span></div>
+        <div class="item"><strong>Progressive disclosure:</strong> <span class="muted">Muestra solo lo necesario en cada momento. La complejidad se revela cuando el usuario la necesita.</span></div>
+      </div>
+      <div class="card">
+        <span class="tag tag-pink">UI</span>
+        <div class="item"><strong>Jerarquía visual:</strong> <span class="muted">Tamaño, color y espacio guían la atención. Lo más importante debe ser visualmente dominante.</span></div>
+        <div class="item"><strong>Gestalt principles:</strong> <span class="muted">Proximidad, semejanza, cierre. Elementos juntos parecen relacionados.</span></div>
+        <div class="item"><strong>Accesibilidad (a11y):</strong> <span class="muted">Contraste mínimo 4.5:1, textos alternativos, navegación por teclado. WCAG 2.1 como referencia.</span></div>
+        <div class="item"><strong>Mobile-first:</strong> <span class="muted">Diseña primero para pantallas pequeñas y luego expande. Fuerza priorización de lo esencial.</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EXTRAS -->
+  <div id="extras" class="section">
+    <div class="section-intro">Conceptos que aparecen en entrevistas y que distinguen a los PM con criterio de negocio de los que solo hablan de features.</div>
+    <div class="grid2">
+      <div class="card">
+        <span class="tag tag-purple">Estrategia de producto</span>
+        <div class="card-title">OKRs</div>
+        <div class="item"><strong>Objective:</strong> <span class="muted">Qué queremos lograr. Inspirador, cualitativo, con tiempo definido.</span></div>
+        <div class="item"><strong>Key Results:</strong> <span class="muted">Cómo medimos que lo logramos. Máximo 3-5 por objetivo, cuantificables.</span></div>
+        <div class="formula">O: Convertirnos en la app de finanzas más usada por millennials en LATAM · KR1: Alcanzar 500K MAU · KR2: NPS &gt; 50</div>
+      </div>
+      <div class="card">
+        <span class="tag tag-teal">Ciclo de vida</span>
+        <div class="card-title">Product lifecycle</div>
+        <div class="item"><strong>Introduction:</strong> <span class="muted">Validar product-market fit. Pocas features, muchos aprendizajes.</span></div>
+        <div class="item"><strong>Growth:</strong> <span class="muted">Escalar lo que funciona. CAC bajo, NRR alto.</span></div>
+        <div class="item"><strong>Maturity:</strong> <span class="muted">Optimizar márgenes, retención, expansión a nuevos segmentos.</span></div>
+        <div class="item"><strong>Decline:</strong> <span class="muted">Pivotear, descontinuar o encontrar nuevos mercados.</span></div>
+      </div>
+      <div class="card">
+        <span class="tag tag-amber">Validación</span>
+        <div class="card-title">A/B Testing</div>
+        <div class="item"><strong>¿Qué es?</strong> <span class="muted">Experimento donde el tráfico se divide entre variante A (control) y B (tratamiento).</span></div>
+        <div class="item"><strong>Cuándo usarlo:</strong> <span class="muted">Cuando tienes suficiente tráfico para obtener significancia estadística.</span></div>
+        <div class="item"><strong>Error común:</strong> <span class="muted">Parar el test demasiado pronto por curiosidad. Respetar el sample size calculado.</span></div>
+      </div>
+      <div class="card">
+        <span class="tag tag-coral">Estrategia</span>
+        <div class="card-title">Product-Market Fit (PMF)</div>
+        <div class="item"><strong>¿Qué es?</strong> <span class="muted">El momento en que el producto satisface una fuerte demanda del mercado de forma repetible.</span></div>
+        <div class="item"><strong>Sean Ellis test:</strong> <span class="muted">"¿Qué tan decepcionado estarías si este producto dejara de existir?" Si &gt;40% dice "muy decepcionado", hay PMF.</span></div>
+        <div class="item"><strong>Señales:</strong> <span class="muted">Retención orgánica, boca a boca, usuarios que pagan sin que los convenzas.</span></div>
+      </div>
+      <div class="card">
+        <span class="tag tag-blue">Comunicación</span>
+        <div class="card-title">PRD — Product Requirements Document</div>
+        <div class="item"><strong>¿Qué es?</strong> <span class="muted">Documento que define el problema, los usuarios, los objetivos y los requerimientos de una feature o producto.</span></div>
+        <div class="item"><strong>Secciones típicas:</strong> <span class="muted">Contexto → Problema → Usuarios → Hipótesis → Métricas de éxito → Requisitos → Out of scope → Riesgos.</span></div>
+      </div>
+      <div class="card">
+        <span class="tag tag-green">Stakeholders</span>
+        <div class="card-title">Roadmap y comunicación</div>
+        <div class="item"><strong>Now / Next / Later:</strong> <span class="muted">Roadmap basado en horizontes de tiempo, no fechas exactas. Más honesto con la incertidumbre.</span></div>
+        <div class="item"><strong>Storytelling:</strong> <span class="muted">Presenta siempre: Problema → Evidencia → Solución → Impacto esperado. No empieces por la solución.</span></div>
+        <div class="item"><strong>Gestión de stakeholders:</strong> <span class="muted">Identifica quién influye, quién decide, quién implementa. Comunica diferente a cada uno.</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function show(id) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  event.target.classList.add('active');
+}
+</script>
