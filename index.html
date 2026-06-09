@@ -420,7 +420,7 @@
 
         } catch (err) {
           console.error("Error loading user data from Supabase:", err);
-          triggerSaveToast("Error al cargar datos de Supabase");
+          triggerSaveToast("Error al cargar datos de Supabase: " + err.message);
         } finally {
           setAuthLoading(false);
         }
@@ -1032,7 +1032,7 @@
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="Diego Vásquez"
+                    placeholder="Pepito Perez"
                     className="w-full bg-slate-950 border border-soccer-border px-3.5 py-2.5 rounded-xl text-xs text-white focus:outline-none focus:border-soccer-primary focus:ring-1 focus:ring-soccer-primary transition-all"
                     required
                   />
@@ -1302,47 +1302,56 @@
               <span className="text-xs font-bold text-slate-100 max-w-[80px] truncate leading-tight">{match.home_team_name}</span>
             </div>
 
-            {/* Prediction inputs */}
-            <div className="col-span-3 flex flex-col justify-center items-center gap-2">
-              <div className="flex items-center gap-1.5 justify-center">
-                <input
-                  type="number"
-                  disabled={lockState.locked}
-                  value={homeVal}
-                  onChange={(e) => setHomeVal(e.target.value === "" ? "" : Math.max(0, parseInt(e.target.value)))}
-                  onBlur={handleBlur}
-                  placeholder="-"
-                  className={`w-10 h-10 rounded-xl bg-slate-950 border text-center text-sm font-extrabold focus:outline-none transition-all ${
-                    lockState.locked 
-                      ? 'border-slate-800 text-slate-500 cursor-not-allowed bg-slate-900/50' 
-                      : 'border-soccer-border text-white focus:border-soccer-primary focus:ring-1 focus:ring-soccer-primary'
-                  }`}
-                  min="0"
-                />
-
-                <div className="flex flex-col items-center px-1">
-                  <span className="text-xs text-soccer-textMuted font-bold font-mono">VS</span>
-                  {(match.status === "Finished" || match.status === "Live") && (
-                    <span className="text-xs font-black text-soccer-accent bg-soccer-accent/10 border border-soccer-accent/20 px-1.5 py-0.5 rounded-md mt-1 font-mono">
-                      {match.home_score} - {match.away_score}
-                    </span>
-                  )}
+            {/* Score & Prediction Area */}
+            <div className="col-span-3 flex flex-col justify-center items-center gap-3">
+              {/* Resultado Real (Arriba) */}
+              <div className="flex flex-col items-center">
+                <span className="text-[8px] uppercase font-bold text-soccer-accent tracking-wider mb-1">Resultado Real</span>
+                <div className="flex items-center gap-1.5 justify-center">
+                  <div className="w-9 h-8 rounded-lg bg-slate-950 border border-soccer-border/80 flex items-center justify-center text-xs font-mono font-black text-soccer-accent">
+                    {match.status === "Finished" || match.status === "Live" ? match.home_score : "-"}
+                  </div>
+                  <span className="text-[10px] text-soccer-textMuted font-bold font-mono px-0.5">vs</span>
+                  <div className="w-9 h-8 rounded-lg bg-slate-950 border border-soccer-border/80 flex items-center justify-center text-xs font-mono font-black text-soccer-accent">
+                    {match.status === "Finished" || match.status === "Live" ? match.away_score : "-"}
+                  </div>
                 </div>
+              </div>
 
-                <input
-                  type="number"
-                  disabled={lockState.locked}
-                  value={awayVal}
-                  onChange={(e) => setAwayVal(e.target.value === "" ? "" : Math.max(0, parseInt(e.target.value)))}
-                  onBlur={handleBlur}
-                  placeholder="-"
-                  className={`w-10 h-10 rounded-xl bg-slate-950 border text-center text-sm font-extrabold focus:outline-none transition-all ${
-                    lockState.locked 
-                      ? 'border-slate-800 text-slate-500 cursor-not-allowed bg-slate-900/50' 
-                      : 'border-soccer-border text-white focus:border-soccer-primary focus:ring-1 focus:ring-soccer-primary'
-                  }`}
-                  min="0"
-                />
+              {/* Resultado Predicho (Abajo) */}
+              <div className="flex flex-col items-center">
+                <span className="text-[8px] uppercase font-bold text-soccer-primary tracking-wider mb-1">Mi Pronóstico</span>
+                <div className="flex items-center gap-1.5 justify-center">
+                  <input
+                    type="number"
+                    disabled={lockState.locked}
+                    value={homeVal}
+                    onChange={(e) => setHomeVal(e.target.value === "" ? "" : Math.max(0, parseInt(e.target.value)))}
+                    onBlur={handleBlur}
+                    placeholder="-"
+                    className={`w-9 h-8 rounded-lg bg-slate-950 border text-center text-xs font-extrabold focus:outline-none transition-all ${
+                      lockState.locked 
+                        ? 'border-slate-800 text-slate-500 cursor-not-allowed bg-slate-900/50' 
+                        : 'border-soccer-border text-white focus:border-soccer-primary focus:ring-1 focus:ring-soccer-primary'
+                    }`}
+                    min="0"
+                  />
+                  <span className="text-[10px] text-soccer-textMuted font-bold font-mono px-0.5">:</span>
+                  <input
+                    type="number"
+                    disabled={lockState.locked}
+                    value={awayVal}
+                    onChange={(e) => setAwayVal(e.target.value === "" ? "" : Math.max(0, parseInt(e.target.value)))}
+                    onBlur={handleBlur}
+                    placeholder="-"
+                    className={`w-9 h-8 rounded-lg bg-slate-950 border text-center text-xs font-extrabold focus:outline-none transition-all ${
+                      lockState.locked 
+                        ? 'border-slate-800 text-slate-500 cursor-not-allowed bg-slate-900/50' 
+                        : 'border-soccer-border text-white focus:border-soccer-primary focus:ring-1 focus:ring-soccer-primary'
+                    }`}
+                    min="0"
+                  />
+                </div>
               </div>
             </div>
 
