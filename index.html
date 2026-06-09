@@ -69,19 +69,19 @@
     // ----------------------------------------------------
     // STATIC DICTIONARY MAPPINGS (FLAGS & API-FOOTBALL)
     // ----------------------------------------------------
-    const TEAM_FLAGS = {
-      "Mexico": "🇲🇽", "Sudafrica": "🇿🇦", "Corea del Sur": "🇰🇷", "Chequia": "🇨🇿",
-      "Canada": "🇨🇦", "Bosnia-Herzegovina": "🇧🇦", "Suiza": "🇨🇭", "Qatar": "🇶🇦",
-      "Brasil": "🇧🇷", "Marruecos": "🇲🇦", "Haiti": "🇭🇹", "Escocia": "🏴󠁧󠁢󠁳󠁣󠁴󠁿",
-      "USA": "🇺🇸", "Paraguay": "🇵🇾", "Australia": "🇦🇺", "Turquia": "🇹🇷",
-      "Alemania": "🇩🇪", "Costa de Marfil": "🇨🇮", "Ecuador": "🇪🇨", "Curazao": "🇨🇼",
-      "Paises Bajos": "🇳🇱", "Japon": "🇯🇵", "Suecia": "🇸🇪", "Tunez": "🇹🇳",
-      "Belgica": "🇧🇪", "Egipto": "🇪🇬", "Iran": "🇮🇷", "Nueva Zelanda": "🇳🇿",
-      "Espana": "🇪🇸", "Cabo Verde": "🇨🇻", "Arabia Saudita": "🇸🇦", "Uruguay": "🇺🇾",
-      "Francia": "🇫🇷", "Senegal": "🇸🇳", "Irak": "🇮🇶", "Noruega": "🇳🇴",
-      "Argentina": "🇦🇷", "Argelia": "🇩🇿", "Austria": "🇦🇹", "Jordania": "🇯🇴",
-      "Portugal": "🇵🇹", "R.D. Congo": "🇨🇩", "Inglaterra": "🏴󠁧󠁢󠁥󠁮󠁧󠁿", "Croacia": "🇭🇷",
-      "Ghana": "🇬🇭", "Panama": "🇵🇦", "Uzbekistan": "🇺🇿", "COLOMBIA": "🇨🇴"
+    const TEAM_COUNTRY_CODES = {
+      "Mexico": "mx", "Sudafrica": "za", "Corea del Sur": "kr", "Chequia": "cz",
+      "Canada": "ca", "Bosnia-Herzegovina": "ba", "Suiza": "ch", "Qatar": "qa",
+      "Brasil": "br", "Marruecos": "ma", "Haiti": "ht", "Escocia": "gb-sct",
+      "USA": "us", "Paraguay": "py", "Australia": "au", "Turquia": "tr",
+      "Alemania": "de", "Costa de Marfil": "ci", "Ecuador": "ec", "Curazao": "cw",
+      "Paises Bajos": "nl", "Japon": "jp", "Suecia": "se", "Tunez": "tn",
+      "Belgica": "be", "Egipto": "eg", "Iran": "ir", "Nueva Zelanda": "nz",
+      "Espana": "es", "Cabo Verde": "cv", "Arabia Saudita": "sa", "Uruguay": "uy",
+      "Francia": "fr", "Senegal": "sn", "Irak": "iq", "Noruega": "no",
+      "Argentina": "ar", "Argelia": "dz", "Austria": "at", "Jordania": "jo",
+      "Portugal": "pt", "R.D. Congo": "cd", "Inglaterra": "gb-eng", "Croacia": "hr",
+      "Ghana": "gh", "Panama": "pa", "Uzbekistan": "uz", "COLOMBIA": "co"
     };
 
     const TEAM_GROUPS = {
@@ -154,6 +154,19 @@
     // Helper: Inline Icons Component
     const Icon = ({ name, className = "w-5 h-5", ...props }) => {
       const icons = {
+        user: (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+            <circle cx="12" cy="7" r="4" />
+          </svg>
+        ),
+        helpCircle: (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+            <circle cx="12" cy="12" r="10" />
+            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+        ),
         lock: (
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
             <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
@@ -755,9 +768,16 @@
                 {/* Logout Dropdown */}
                 <div className="absolute right-0 mt-2 w-48 bg-soccer-card border border-soccer-border rounded-xl shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
                   <div className="p-2 border-b border-soccer-border">
-                    <p className="text-[10px] font-bold text-soccer-textMuted uppercase tracking-wider px-2 py-1">Cuenta</p>
+                    <p className="text-[10px] font-bold text-soccer-textMuted uppercase tracking-wider px-2 py-1">Mi Cuenta</p>
                   </div>
-                  <div className="p-1">
+                  <div className="p-1 space-y-0.5">
+                    <button
+                      onClick={() => setActiveTab("profile")}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-left text-slate-300 hover:bg-slate-800 transition-colors font-semibold"
+                    >
+                      <Icon name="user" className="w-3.5 h-3.5 text-soccer-primary" />
+                      <span>Ver Perfil</span>
+                    </button>
                     <button
                       onClick={handleLogout}
                       className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-left text-red-400 hover:bg-red-950/20 transition-colors font-semibold"
@@ -775,38 +795,45 @@
           <main className="max-w-6xl mx-auto w-full px-4 mt-6 flex-1 flex flex-col gap-6">
             
             {/* TAB NAVIGATION */}
-            <nav className="flex bg-slate-950 p-1.5 rounded-xl border border-soccer-border">
+            <nav className="flex bg-slate-950 p-1.5 rounded-xl border border-soccer-border overflow-x-auto whitespace-nowrap scrollbar-none gap-1">
               <button
                 onClick={() => setActiveTab("dashboard")}
-                className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold tracking-wide transition-all ${activeTab === "dashboard" ? 'bg-soccer-primary text-soccer-darker font-bold shadow-md shadow-soccer-primary/20' : 'text-soccer-textMuted hover:text-white'}`}
+                className={`flex-1 sm:flex-initial flex-shrink-0 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold tracking-wide transition-all ${activeTab === "dashboard" ? 'bg-soccer-primary text-soccer-darker font-bold shadow-md shadow-soccer-primary/20' : 'text-soccer-textMuted hover:text-white'}`}
               >
                 <Icon name="calendar" className="w-4 h-4" />
                 <span>Partidos</span>
               </button>
               <button
                 onClick={() => setActiveTab("positions")}
-                className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold tracking-wide transition-all ${activeTab === "positions" ? 'bg-soccer-primary text-soccer-darker font-bold shadow-md shadow-soccer-primary/20' : 'text-soccer-textMuted hover:text-white'}`}
+                className={`flex-1 sm:flex-initial flex-shrink-0 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold tracking-wide transition-all ${activeTab === "positions" ? 'bg-soccer-primary text-soccer-darker font-bold shadow-md shadow-soccer-primary/20' : 'text-soccer-textMuted hover:text-white'}`}
               >
                 <Icon name="list" className="w-4 h-4" />
                 <span>Posiciones Grupos</span>
               </button>
               <button
                 onClick={() => setActiveTab("leaderboards")}
-                className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold tracking-wide transition-all ${activeTab === "leaderboards" ? 'bg-soccer-primary text-soccer-darker font-bold shadow-md shadow-soccer-primary/20' : 'text-soccer-textMuted hover:text-white'}`}
+                className={`flex-1 sm:flex-initial flex-shrink-0 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold tracking-wide transition-all ${activeTab === "leaderboards" ? 'bg-soccer-primary text-soccer-darker font-bold shadow-md shadow-soccer-primary/20' : 'text-soccer-textMuted hover:text-white'}`}
               >
                 <Icon name="users" className="w-4 h-4" />
                 <span>Grupos y Rankings</span>
               </button>
               <button
                 onClick={() => setActiveTab("my-stats")}
-                className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold tracking-wide transition-all ${activeTab === "my-stats" ? 'bg-soccer-primary text-soccer-darker font-bold shadow-md shadow-soccer-primary/20' : 'text-soccer-textMuted hover:text-white'}`}
+                className={`flex-1 sm:flex-initial flex-shrink-0 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold tracking-wide transition-all ${activeTab === "my-stats" ? 'bg-soccer-primary text-soccer-darker font-bold shadow-md shadow-soccer-primary/20' : 'text-soccer-textMuted hover:text-white'}`}
               >
                 <Icon name="award" className="w-4 h-4" />
                 <span>Mis Estadísticas</span>
               </button>
               <button
+                onClick={() => setActiveTab("profile")}
+                className={`flex-1 sm:flex-initial flex-shrink-0 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold tracking-wide transition-all ${activeTab === "profile" ? 'bg-soccer-primary text-soccer-darker font-bold shadow-md shadow-soccer-primary/20' : 'text-soccer-textMuted hover:text-white'}`}
+              >
+                <Icon name="user" className="w-4 h-4" />
+                <span>Mi Perfil</span>
+              </button>
+              <button
                 onClick={() => setActiveTab("rules")}
-                className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold tracking-wide transition-all ${activeTab === "rules" ? 'bg-soccer-primary text-soccer-darker font-bold shadow-md shadow-soccer-primary/20' : 'text-soccer-textMuted hover:text-white'}`}
+                className={`flex-1 sm:flex-initial flex-shrink-0 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold tracking-wide transition-all ${activeTab === "rules" ? 'bg-soccer-primary text-soccer-darker font-bold shadow-md shadow-soccer-primary/20' : 'text-soccer-textMuted hover:text-white'}`}
               >
                 <Icon name="helpCircle" className="w-4 h-4" />
                 <span>Reglamento</span>
@@ -855,19 +882,31 @@
               />
             )}
 
+            {activeTab === "profile" && (
+              <ProfileTab
+                currentUser={user}
+                profile={profile}
+                setProfile={setProfile}
+                handleLogout={handleLogout}
+                triggerSaveToast={triggerSaveToast}
+              />
+            )}
+
             {activeTab === "rules" && <RulesTab />}
 
           </main>
 
           {/* ADMIN TOGGLE BUTTON */}
-          <button
-            onClick={() => setShowAdmin(!showAdmin)}
-            className="fixed bottom-4 right-4 z-40 bg-soccer-accent hover:bg-amber-400 text-soccer-darker p-3.5 rounded-full shadow-2xl transition-all duration-300 flex items-center gap-2 border border-amber-300 font-bold hover:scale-105"
-            style={{ boxShadow: '0 0 15px rgba(245, 158, 11, 0.4)' }}
-          >
-            <Icon name="settings" className="w-5 h-5 animate-spin-slow" />
-            <span className="text-xs uppercase tracking-wide">Panel Admin</span>
-          </button>
+          {user && user.email === 'diegorene9406@gmail.com' && (
+            <button
+              onClick={() => setShowAdmin(!showAdmin)}
+              className="fixed bottom-4 right-4 z-40 bg-soccer-accent hover:bg-amber-400 text-soccer-darker p-3.5 rounded-full shadow-2xl transition-all duration-300 flex items-center gap-2 border border-amber-300 font-bold hover:scale-105"
+              style={{ boxShadow: '0 0 15px rgba(245, 158, 11, 0.4)' }}
+            >
+              <Icon name="settings" className="w-5 h-5 animate-spin-slow" />
+              <span className="text-xs uppercase tracking-wide">Panel Admin</span>
+            </button>
+          )}
 
           {/* FLOATING SAVE NOTIFICATION */}
           {saveStatus.visible && (
@@ -878,7 +917,7 @@
           )}
 
           {/* ADMIN SIDEBAR SLIDE-OUT */}
-          {showAdmin && (
+          {showAdmin && user && user.email === 'diegorene9406@gmail.com' && (
             <AdminPanel
               isOpen={showAdmin}
               onClose={() => setShowAdmin(false)}
@@ -1218,8 +1257,8 @@
         return `Empieza en ${Math.floor(diffHours / 24)}d ${diffHours % 24}h`;
       };
 
-      const homeFlag = TEAM_FLAGS[match.home_team_name] || "🏳️";
-      const awayFlag = TEAM_FLAGS[match.away_team_name] || "🏳️";
+      const homeCode = TEAM_COUNTRY_CODES[match.home_team_name];
+      const awayCode = TEAM_COUNTRY_CODES[match.away_team_name];
 
       return (
         <div className={`glass rounded-2xl p-4 transition-all duration-300 hover:-translate-y-0.5 shadow-md flex flex-col justify-between ${match.status === 'Live' ? 'border-red-500/50 shadow-red-950/20 shadow-lg' : ''} ${points === 5 ? 'glass-gold-glowing' : ''} ${points === 3 ? 'glass-glowing' : ''}`}>
@@ -1255,7 +1294,11 @@
           <div className="grid grid-cols-7 items-center my-2 gap-1 text-center">
             {/* Home Team */}
             <div className="col-span-2 flex flex-col items-center gap-1">
-              <span className="text-3xl filter drop-shadow-md select-none">{homeFlag}</span>
+              {homeCode ? (
+                <img src={`https://flagcdn.com/48x36/${homeCode}.png`} alt={match.home_team_name} className="w-10 h-7 object-cover rounded shadow-md select-none mb-1" />
+              ) : (
+                <span className="text-3xl filter drop-shadow-md select-none">🏳️</span>
+              )}
               <span className="text-xs font-bold text-slate-100 max-w-[80px] truncate leading-tight">{match.home_team_name}</span>
             </div>
 
@@ -1305,7 +1348,11 @@
 
             {/* Away Team */}
             <div className="col-span-2 flex flex-col items-center gap-1">
-              <span className="text-3xl filter drop-shadow-md select-none">{awayFlag}</span>
+              {awayCode ? (
+                <img src={`https://flagcdn.com/48x36/${awayCode}.png`} alt={match.away_team_name} className="w-10 h-7 object-cover rounded shadow-md select-none mb-1" />
+              ) : (
+                <span className="text-3xl filter drop-shadow-md select-none">🏳️</span>
+              )}
               <span className="text-xs font-bold text-slate-100 max-w-[80px] truncate leading-tight">{match.away_team_name}</span>
             </div>
           </div>
@@ -1458,22 +1505,29 @@
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/30">
-                      {standingsByGroup[letter].map((team, idx) => (
-                        <tr key={team.name} className="hover:bg-slate-800/20">
-                          <td className="py-2 text-center font-mono font-bold text-soccer-textMuted">
-                            {idx + 1}
-                          </td>
-                          <td className="py-2 pl-1 font-semibold flex items-center gap-1.5 truncate max-w-[100px]">
-                            <span className="text-base select-none">{TEAM_FLAGS[team.name] || "🏳️"}</span>
-                            <span className="truncate">{team.name}</span>
-                          </td>
-                          <td className="py-2 text-center font-mono">{team.played}</td>
-                          <td className="py-2 text-center font-mono text-soccer-textMuted">
-                            {team.goalDiff > 0 ? `+${team.goalDiff}` : team.goalDiff}
-                          </td>
-                          <td className="py-2 text-center font-mono font-black text-white">{team.points}</td>
-                        </tr>
-                      ))}
+                      {standingsByGroup[letter].map((team, idx) => {
+                        const code = TEAM_COUNTRY_CODES[team.name];
+                        return (
+                          <tr key={team.name} className="hover:bg-slate-800/20">
+                            <td className="py-2 text-center font-mono font-bold text-soccer-textMuted">
+                              {idx + 1}
+                            </td>
+                            <td className="py-2 pl-1 font-semibold flex items-center gap-1.5 truncate max-w-[120px]">
+                              {code ? (
+                                <img src={`https://flagcdn.com/16x12/${code}.png`} alt={team.name} className="w-4 h-3 object-cover rounded-sm shadow-sm select-none" />
+                              ) : (
+                                <span className="text-base select-none">🏳️</span>
+                              )}
+                              <span className="truncate">{team.name}</span>
+                            </td>
+                            <td className="py-2 text-center font-mono">{team.played}</td>
+                            <td className="py-2 text-center font-mono text-soccer-textMuted">
+                              {team.goalDiff > 0 ? `+${team.goalDiff}` : team.goalDiff}
+                            </td>
+                            <td className="py-2 text-center font-mono font-black text-white">{team.points}</td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -1819,10 +1873,20 @@
                         <div key={m.id} className="bg-soccer-darker/60 border border-slate-800 rounded-xl p-3 flex justify-between items-center text-xs">
                           <div className="flex flex-col gap-1 w-2/3">
                             <span className="text-[8px] font-bold text-soccer-textMuted uppercase truncate">{m.stage}</span>
-                            <div className="flex items-center gap-1 font-semibold text-slate-200">
-                              <span>{TEAM_FLAGS[m.home_team_name] || "🏳️"} {m.home_team_name}</span>
-                              <span className="text-[10px] text-soccer-textMuted">vs</span>
-                              <span>{TEAM_FLAGS[m.away_team_name] || "🏳️"} {m.away_team_name}</span>
+                            <div className="flex items-center gap-1.5 font-semibold text-slate-200">
+                              {TEAM_COUNTRY_CODES[m.home_team_name] ? (
+                                <img src={`https://flagcdn.com/16x12/${TEAM_COUNTRY_CODES[m.home_team_name]}.png`} alt={m.home_team_name} className="w-4 h-3 object-cover rounded-sm shadow-sm select-none" />
+                              ) : (
+                                <span className="text-sm select-none">🏳️</span>
+                              )}
+                              <span>{m.home_team_name}</span>
+                              <span className="text-[10px] text-soccer-textMuted mx-0.5">vs</span>
+                              {TEAM_COUNTRY_CODES[m.away_team_name] ? (
+                                <img src={`https://flagcdn.com/16x12/${TEAM_COUNTRY_CODES[m.away_team_name]}.png`} alt={m.away_team_name} className="w-4 h-3 object-cover rounded-sm shadow-sm select-none" />
+                              ) : (
+                                <span className="text-sm select-none">🏳️</span>
+                              )}
+                              <span>{m.away_team_name}</span>
                             </div>
                           </div>
                           
@@ -1913,9 +1977,19 @@
 
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-1.5 font-bold text-sm text-slate-200">
-                      <span>{TEAM_FLAGS[match.home_team_name] || "🏳️"} {match.home_team_name}</span>
-                      <span className="text-xs text-soccer-textMuted font-medium">vs</span>
-                      <span>{TEAM_FLAGS[match.away_team_name] || "🏳️"} {match.away_team_name}</span>
+                      {TEAM_COUNTRY_CODES[match.home_team_name] ? (
+                        <img src={`https://flagcdn.com/16x12/${TEAM_COUNTRY_CODES[match.home_team_name]}.png`} alt={match.home_team_name} className="w-4 h-3 object-cover rounded-sm shadow-sm select-none" />
+                      ) : (
+                        <span className="text-sm select-none">🏳️</span>
+                      )}
+                      <span>{match.home_team_name}</span>
+                      <span className="text-xs text-soccer-textMuted font-medium mx-0.5">vs</span>
+                      {TEAM_COUNTRY_CODES[match.away_team_name] ? (
+                        <img src={`https://flagcdn.com/16x12/${TEAM_COUNTRY_CODES[match.away_team_name]}.png`} alt={match.away_team_name} className="w-4 h-3 object-cover rounded-sm shadow-sm select-none" />
+                      ) : (
+                        <span className="text-sm select-none">🏳️</span>
+                      )}
+                      <span>{match.away_team_name}</span>
                     </div>
 
                     {(match.status === "Finished" || match.status === "Live") && (
@@ -1963,6 +2037,236 @@
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ----------------------------------------------------
+    // SUB-COMPONENTS: PROFILE TAB
+    // ----------------------------------------------------
+    function ProfileTab({
+      currentUser,
+      profile,
+      setProfile,
+      handleLogout,
+      triggerSaveToast
+    }) {
+      const [name, setName] = useState(profile?.name || "");
+      const [avatar, setAvatar] = useState(profile?.avatar || "⚽");
+      const [password, setPassword] = useState("");
+      const [confirmPassword, setConfirmPassword] = useState("");
+      const [profileLoading, setProfileLoading] = useState(false);
+      const [passLoading, setPassLoading] = useState(false);
+      const [errorMsg, setErrorMsg] = useState("");
+      const [passErrorMsg, setPassErrorMsg] = useState("");
+
+      const avatars = ["⚽", "🏆", "🌟", "👟", "🥅", "🧉", "🌎", "🍀", "💎", "🦁", "🦅", "🔥"];
+
+      useEffect(() => {
+        if (profile) {
+          setName(profile.name || "");
+          setAvatar(profile.avatar || "⚽");
+        }
+      }, [profile]);
+
+      const handleSaveProfile = async (e) => {
+        e.preventDefault();
+        setErrorMsg("");
+        if (!name.trim()) {
+          setErrorMsg("El nombre no puede estar vacío");
+          return;
+        }
+        setProfileLoading(true);
+        try {
+          const { error } = await supabase
+            .from('profiles')
+            .update({
+              name: name.trim(),
+              avatar: avatar,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', currentUser.id);
+
+          if (error) throw error;
+
+          // Update local profile state
+          setProfile({
+            ...profile,
+            name: name.trim(),
+            avatar: avatar
+          });
+
+          triggerSaveToast("Perfil guardado con éxito");
+        } catch (err) {
+          setErrorMsg(err.message);
+        } finally {
+          setProfileLoading(false);
+        }
+      };
+
+      const handleUpdatePassword = async (e) => {
+        e.preventDefault();
+        setPassErrorMsg("");
+        
+        if (password.length < 6) {
+          setPassErrorMsg("La contraseña debe tener al menos 6 caracteres");
+          return;
+        }
+        if (password !== confirmPassword) {
+          setPassErrorMsg("Las contraseñas no coinciden");
+          return;
+        }
+
+        setPassLoading(true);
+        try {
+          const { error } = await supabase.auth.updateUser({
+            password: password
+          });
+
+          if (error) throw error;
+
+          setPassword("");
+          setConfirmPassword("");
+          triggerSaveToast("Contraseña actualizada con éxito");
+        } catch (err) {
+          setPassErrorMsg(err.message);
+        } finally {
+          setPassLoading(false);
+        }
+      };
+
+      return (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* PROFILE INFO CARD */}
+          <div className="glass rounded-2xl p-6 border border-soccer-border space-y-4">
+            <h3 className="text-sm font-bold display-font text-white flex items-center gap-2 border-b border-soccer-border pb-3">
+              <Icon name="user" className="w-4 h-4 text-soccer-primary" />
+              Editar Información de Perfil
+            </h3>
+
+            {errorMsg && (
+              <div className="bg-red-950/40 border border-red-800 text-red-300 px-3 py-2.5 rounded-xl text-xs flex items-center gap-2 mb-4">
+                <Icon name="alertCircle" className="w-4 h-4 text-red-400" />
+                <span>{errorMsg}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSaveProfile} className="space-y-4">
+              <div>
+                <label className="text-[10px] uppercase font-bold text-soccer-textMuted block mb-1">Correo Electrónico (No modificable)</label>
+                <input
+                  type="text"
+                  value={currentUser.email}
+                  disabled
+                  className="w-full bg-slate-900 border border-soccer-border px-3.5 py-2.5 rounded-xl text-xs text-slate-500 cursor-not-allowed"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] uppercase font-bold text-soccer-textMuted block mb-1">Nombre para Mostrar</label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Tu Nombre"
+                  className="w-full bg-slate-950 border border-soccer-border px-3.5 py-2.5 rounded-xl text-xs text-white focus:outline-none focus:border-soccer-primary focus:ring-1 focus:ring-soccer-primary transition-all"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] uppercase font-bold text-soccer-textMuted block">Selecciona tu Avatar/Emoji</label>
+                <div className="grid grid-cols-6 gap-2 bg-slate-950/80 p-2.5 rounded-xl border border-soccer-border/60">
+                  {avatars.map(av => (
+                    <button
+                      key={av}
+                      type="button"
+                      onClick={() => setAvatar(av)}
+                      className={`text-xl p-1.5 rounded-lg transition-all ${avatar === av ? 'bg-soccer-primary text-soccer-darker scale-105 border border-soccer-primaryGlow shadow' : 'hover:bg-slate-800'}`}
+                    >
+                      {av}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={profileLoading}
+                className="w-full bg-soccer-primary hover:bg-emerald-400 disabled:opacity-50 text-soccer-darker text-xs font-black uppercase tracking-wider py-3 rounded-xl transition-all shadow-lg shadow-soccer-primary/10 mt-6 flex justify-center items-center gap-2"
+              >
+                {profileLoading && <Icon name="soccerBall" className="w-4 h-4 animate-spin text-soccer-darker" />}
+                <span>Guardar Perfil</span>
+              </button>
+            </form>
+          </div>
+
+          {/* CHANGE PASSWORD & LOGOUT CARD */}
+          <div className="space-y-6">
+            <div className="glass rounded-2xl p-6 border border-soccer-border space-y-4">
+              <h3 className="text-sm font-bold display-font text-white flex items-center gap-2 border-b border-soccer-border pb-3">
+                <Icon name="lock" className="w-4 h-4 text-soccer-accent" />
+                Cambiar Contraseña
+              </h3>
+
+              {passErrorMsg && (
+                <div className="bg-red-950/40 border border-red-800 text-red-300 px-3 py-2.5 rounded-xl text-xs flex items-center gap-2 mb-4">
+                  <Icon name="alertCircle" className="w-4 h-4 text-red-400" />
+                  <span>{passErrorMsg}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleUpdatePassword} className="space-y-4">
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-soccer-textMuted block mb-1">Nueva Contraseña</label>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Mínimo 6 caracteres"
+                    className="w-full bg-slate-950 border border-soccer-border px-3.5 py-2.5 rounded-xl text-xs text-white focus:outline-none focus:border-soccer-primary focus:ring-1 focus:ring-soccer-primary transition-all"
+                    minLength="6"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-soccer-textMuted block mb-1">Confirmar Nueva Contraseña</label>
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Mismo valor que arriba"
+                    className="w-full bg-slate-950 border border-soccer-border px-3.5 py-2.5 rounded-xl text-xs text-white focus:outline-none focus:border-soccer-primary focus:ring-1 focus:ring-soccer-primary transition-all"
+                    minLength="6"
+                    required
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={passLoading}
+                  className="w-full bg-soccer-accent hover:bg-amber-400 disabled:opacity-50 text-soccer-darker text-xs font-black uppercase tracking-wider py-3 rounded-xl transition-all shadow-lg shadow-soccer-accent/10 mt-6 flex justify-center items-center gap-2"
+                >
+                  {passLoading && <Icon name="soccerBall" className="w-4 h-4 animate-spin text-soccer-darker" />}
+                  <span>Actualizar Contraseña</span>
+                </button>
+              </form>
+            </div>
+
+            <div className="glass rounded-2xl p-6 border border-soccer-border flex flex-col justify-center items-center text-center space-y-3">
+              <h3 className="text-xs font-extrabold tracking-wider uppercase text-soccer-textMuted display-font">Sesión Activa</h3>
+              <p className="text-xs text-slate-300">¿Deseas cerrar tu sesión en este dispositivo?</p>
+              
+              <button
+                onClick={handleLogout}
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-xs text-red-400 bg-red-950/20 hover:bg-red-950/40 border border-red-900/60 transition-colors font-bold uppercase tracking-wider"
+              >
+                <Icon name="logOut" className="w-4 h-4 text-red-400" />
+                <span>Cerrar Sesión Activa</span>
+              </button>
             </div>
           </div>
         </div>
@@ -2313,8 +2617,13 @@
           </div>
 
           <div className="flex items-center justify-between gap-1.5">
-            <span className="font-semibold text-slate-300 w-1/3 truncate text-[11px] text-left">
-              {TEAM_FLAGS[match.home_team_name] || "🏳️"} {match.home_team_name}
+            <span className="font-semibold text-slate-300 w-1/3 truncate text-[11px] text-left flex items-center gap-1">
+              {TEAM_COUNTRY_CODES[match.home_team_name] ? (
+                <img src={`https://flagcdn.com/16x12/${TEAM_COUNTRY_CODES[match.home_team_name]}.png`} alt={match.home_team_name} className="w-4 h-3 object-cover rounded-sm shadow-sm select-none" />
+              ) : (
+                <span className="text-sm select-none">🏳️</span>
+              )}
+              <span className="truncate">{match.home_team_name}</span>
             </span>
             
             <div className="flex items-center gap-1 w-1/3 justify-center">
@@ -2335,8 +2644,13 @@
               />
             </div>
 
-            <span className="font-semibold text-slate-300 w-1/3 truncate text-[11px] text-right">
-              {match.away_team_name} {TEAM_FLAGS[match.away_team_name] || "🏳️"}
+            <span className="font-semibold text-slate-300 w-1/3 truncate text-[11px] text-right flex items-center justify-end gap-1">
+              <span className="truncate">{match.away_team_name}</span>
+              {TEAM_COUNTRY_CODES[match.away_team_name] ? (
+                <img src={`https://flagcdn.com/16x12/${TEAM_COUNTRY_CODES[match.away_team_name]}.png`} alt={match.away_team_name} className="w-4 h-3 object-cover rounded-sm shadow-sm select-none" />
+              ) : (
+                <span className="text-sm select-none">🏳️</span>
+              )}
             </span>
           </div>
 
