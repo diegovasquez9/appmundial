@@ -1,0 +1,2371 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Polla Mundial 2026 - Quiniela Interactiva Real</title>
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Montserrat:wght@600;700;800;900&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS Play CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Custom Tailwind Config -->
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            soccer: {
+              dark: '#0b0f19',
+              darker: '#060810',
+              card: '#13192b',
+              border: '#1f294d',
+              primary: '#10b981', // Emerald Green
+              primaryGlow: '#00ffaa',
+              accent: '#f59e0b', // Gold/Amber
+              accentGlow: '#ffcc00',
+              textMuted: '#94a3b8',
+              highlight: '#38bdf8', // Cyan
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            display: ['Montserrat', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- CSS Custom Styles & Keyframes (linked to index.css) -->
+  <link rel="stylesheet" href="index.css">
+
+  <!-- React & ReactDOM (UMD) -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <!-- Babel Standalone to compile JSX in the browser -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- Supabase JS Client Library -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="h-full flex flex-col">
+
+  <div id="root" class="min-h-screen flex flex-col bg-soccer-darker text-slate-100"></div>
+
+  <!-- React Script -->
+  <script type="text/babel">
+    const { useState, useEffect, useMemo, useRef } = React;
+
+    // Supabase Connection Configuration
+    const supabaseUrl = 'https://yiflgqewcqxbrxhjbndh.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlpZmxncWV3Y3F4YnJ4aGpibmRoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NjY1NjQsImV4cCI6MjA5NjI0MjU2NH0.oOXjDXBVLGJ_wRSgc6TSSSjbAVX9Y7XkD_TwdBfBQYI';
+    const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+    // ----------------------------------------------------
+    // STATIC DICTIONARY MAPPINGS (FLAGS & API-FOOTBALL)
+    // ----------------------------------------------------
+    const TEAM_FLAGS = {
+      "Mexico": "🇲🇽", "Sudafrica": "🇿🇦", "Corea del Sur": "🇰🇷", "Chequia": "🇨🇿",
+      "Canada": "🇨🇦", "Bosnia-Herzegovina": "🇧🇦", "Suiza": "🇨🇭", "Qatar": "🇶🇦",
+      "Brasil": "🇧🇷", "Marruecos": "🇲🇦", "Haiti": "🇭🇹", "Escocia": "🏴󠁧󠁢󠁳󠁣󠁴󠁿",
+      "USA": "🇺🇸", "Paraguay": "🇵🇾", "Australia": "🇦🇺", "Turquia": "🇹🇷",
+      "Alemania": "🇩🇪", "Costa de Marfil": "🇨🇮", "Ecuador": "🇪🇨", "Curazao": "🇨🇼",
+      "Paises Bajos": "🇳🇱", "Japon": "🇯🇵", "Suecia": "🇸🇪", "Tunez": "🇹🇳",
+      "Belgica": "🇧🇪", "Egipto": "🇪🇬", "Iran": "🇮🇷", "Nueva Zelanda": "🇳🇿",
+      "Espana": "🇪🇸", "Cabo Verde": "🇨🇻", "Arabia Saudita": "🇸🇦", "Uruguay": "🇺🇾",
+      "Francia": "🇫🇷", "Senegal": "🇸🇳", "Irak": "🇮🇶", "Noruega": "🇳🇴",
+      "Argentina": "🇦🇷", "Argelia": "🇩🇿", "Austria": "🇦🇹", "Jordania": "🇯🇴",
+      "Portugal": "🇵🇹", "R.D. Congo": "🇨🇩", "Inglaterra": "🏴󠁧󠁢󠁥󠁮󠁧󠁿", "Croacia": "🇭🇷",
+      "Ghana": "🇬🇭", "Panama": "🇵🇦", "Uzbekistan": "🇺🇿", "COLOMBIA": "🇨🇴"
+    };
+
+    const TEAM_GROUPS = {
+      "Mexico": "A", "Corea del Sur": "A", "Chequia": "A", "Sudafrica": "A",
+      "Canada": "B", "Bosnia-Herzegovina": "B", "Suiza": "B", "Qatar": "B",
+      "Brasil": "C", "Marruecos": "C", "Haiti": "C", "Escocia": "C",
+      "USA": "D", "Paraguay": "D", "Australia": "D", "Turquia": "D",
+      "Alemania": "E", "Costa de Marfil": "E", "Ecuador": "E", "Curazao": "E",
+      "Paises Bajos": "F", "Japon": "F", "Suecia": "F", "Tunez": "F",
+      "Belgica": "G", "Egipto": "G", "Iran": "G", "Nueva Zelanda": "G",
+      "Espana": "H", "Cabo Verde": "H", "Arabia Saudita": "H", "Uruguay": "H",
+      "Francia": "I", "Senegal": "I", "Irak": "I", "Noruega": "I",
+      "Argentina": "J", "Argelia": "J", "Austria": "J", "Jordania": "J",
+      "Portugal": "K", "R.D. Congo": "K", "Uzbekistan": "K", "COLOMBIA": "K",
+      "Inglaterra": "L", "Croacia": "L", "Ghana": "L", "Panama": "L"
+    };
+
+    // Maps Spanish names to English API-football team names for correct synchronization matches
+    const TEAM_NAME_MAP = {
+      "Mexico": "Mexico",
+      "Sudafrica": "South Africa",
+      "Corea del Sur": "South Korea",
+      "Chequia": "Czech Republic",
+      "Canada": "Canada",
+      "Bosnia-Herzegovina": "Bosnia & Herzegovina",
+      "Paraguay": "Paraguay",
+      "USA": "USA",
+      "Suiza": "Switzerland",
+      "Qatar": "Qatar",
+      "Brasil": "Brazil",
+      "Marruecos": "Morocco",
+      "Haiti": "Haiti",
+      "Escocia": "Scotland",
+      "Australia": "Australia",
+      "Turquia": "Turkey",
+      "Alemania": "Germany",
+      "Curazao": "Curacao",
+      "Paises Bajos": "Netherlands",
+      "Japon": "Japan",
+      "Costa de Marfil": "Ivory Coast",
+      "Ecuador": "Ecuador",
+      "Suecia": "Sweden",
+      "Tunez": "Tunisia",
+      "Espana": "Spain",
+      "Cabo Verde": "Cape Verde",
+      "Belgica": "Belgium",
+      "Egipto": "Egypt",
+      "Arabia Saudita": "Saudi Arabia",
+      "Uruguay": "Uruguay",
+      "Iran": "Iran",
+      "Nueva Zelanda": "New Zealand",
+      "Francia": "France",
+      "Senegal": "Senegal",
+      "Irak": "Iraq",
+      "Noruega": "Norway",
+      "Argentina": "Argentina",
+      "Argelia": "Algeria",
+      "Austria": "Austria",
+      "Jordania": "Jordan",
+      "Portugal": "Portugal",
+      "R.D. Congo": "DR Congo",
+      "Inglaterra": "England",
+      "Croacia": "Croatia",
+      "Ghana": "Ghana",
+      "Panama": "Panama",
+      "Uzbekistan": "Uzbekistan",
+      "COLOMBIA": "Colombia"
+    };
+
+    // Helper: Inline Icons Component
+    const Icon = ({ name, className = "w-5 h-5", ...props }) => {
+      const icons = {
+        lock: (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          </svg>
+        ),
+        unlock: (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+            <path d="M7 11V7a5 5 0 0 1 9.9-1" />
+          </svg>
+        ),
+        calendar: (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+            <line x1="16" y1="2" x2="16" y2="6" />
+            <line x1="8" y1="2" x2="8" y2="6" />
+            <line x1="3" y1="10" x2="21" y2="10" />
+          </svg>
+        ),
+        users: (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+          </svg>
+        ),
+        award: (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+            <circle cx="12" cy="8" r="7" />
+            <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88" />
+          </svg>
+        ),
+        clock: (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+            <circle cx="12" cy="12" r="10" />
+            <polyline points="12 6 12 12 16 14" />
+          </svg>
+        ),
+        plus: (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+        ),
+        settings: (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+        ),
+        check: (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" {...props}>
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        ),
+        alertCircle: (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+        ),
+        trendingUp: (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+            <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+            <polyline points="17 6 23 6 23 12" />
+          </svg>
+        ),
+        reset: (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+          </svg>
+        ),
+        soccerBall: (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" {...props}>
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+            <path d="M2 12h20" />
+          </svg>
+        ),
+        logOut: (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" y1="12" x2="9" y2="12" />
+          </svg>
+        ),
+        list: (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+            <line x1="8" y1="6" x2="21" y2="6" />
+            <line x1="8" y1="12" x2="21" y2="12" />
+            <line x1="8" y1="18" x2="21" y2="18" />
+            <line x1="3" y1="6" x2="3.01" y2="6" />
+            <line x1="3" y1="12" x2="3.01" y2="12" />
+            <line x1="3" y1="18" x2="3.01" y2="18" />
+          </svg>
+        ),
+        sync: (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+          </svg>
+        )
+      };
+
+      const svgNode = icons[name] || (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/></svg>
+      );
+      return React.cloneElement(svgNode, { className: `${className} flex-shrink-0` });
+    };
+
+    // ----------------------------------------------------
+    // MAIN APP COMPONENT
+    // ----------------------------------------------------
+    function App() {
+      // Auth States
+      const [session, setSession] = useState(null);
+      const [user, setUser] = useState(null);
+      const [profile, setProfile] = useState(null);
+      const [authLoading, setAuthLoading] = useState(true);
+
+      // Data States
+      const [matches, setMatches] = useState([]);
+      const [predictions, setPredictions] = useState({});
+      const [groups, setGroups] = useState([]);
+      const [systemTime, setSystemTime] = useState(new Date().toISOString().substring(0, 16));
+      const [isTimeSimulated, setIsTimeSimulated] = useState(false);
+      
+      const [activeTab, setActiveTab] = useState("dashboard");
+      const [selectedGroup, setSelectedGroup] = useState("");
+      const [showAdmin, setShowAdmin] = useState(false);
+      
+      // Save notification state
+      const [saveStatus, setSaveStatus] = useState({ visible: false, message: "" });
+
+      // Trigger temporary visual auto-save toast
+      const triggerSaveToast = (msg) => {
+        setSaveStatus({ visible: true, message: msg });
+        setTimeout(() => {
+          setSaveStatus({ visible: false, message: "" });
+        }, 2000);
+      };
+
+      // 1. SUPABASE AUTH LISTENER
+      useEffect(() => {
+        // Get initial session
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          setSession(session);
+          if (session) {
+            setUser(session.user);
+            fetchUserData(session.user.id);
+          } else {
+            setAuthLoading(false);
+          }
+        });
+
+        // Listen for auth changes
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+          setSession(session);
+          if (session) {
+            setUser(session.user);
+            fetchUserData(session.user.id);
+          } else {
+            setUser(null);
+            setProfile(null);
+            setPredictions({});
+            setGroups([]);
+            setAuthLoading(false);
+          }
+        });
+
+        // Setup real time clock tick if not simulated
+        const timer = setInterval(() => {
+          if (!isTimeSimulated) {
+            setSystemTime(new Date().toISOString().substring(0, 16));
+          }
+        }, 30000); // every 30s
+
+        return () => {
+          subscription.unsubscribe();
+          clearInterval(timer);
+        };
+      }, [isTimeSimulated]);
+
+      // Fetch all database records related to the user
+      const fetchUserData = async (userId) => {
+        try {
+          setAuthLoading(true);
+
+          // a. Profile
+          const { data: profileData, error: profileErr } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', userId)
+            .maybeSingle();
+
+          if (profileErr) throw profileErr;
+          setProfile(profileData);
+
+          // b. Matches
+          const { data: matchesData, error: matchesErr } = await supabase
+            .from('matches')
+            .select('*')
+            .order('date');
+
+          if (matchesErr) throw matchesErr;
+          setMatches(matchesData || []);
+
+          // c. Predictions (only current user's predictions are returned under user_id)
+          const { data: predsData, error: predsErr } = await supabase
+            .from('predictions')
+            .select('*')
+            .eq('user_id', userId);
+
+          if (predsErr) throw predsErr;
+          
+          const predObj = {};
+          predsData?.forEach(p => {
+            predObj[`${userId}_${p.match_id}`] = {
+              homeScore: p.home_score,
+              awayScore: p.away_score
+            };
+          });
+          setPredictions(predObj);
+
+          // d. User Groups
+          const { data: memberships, error: memberErr } = await supabase
+            .from('group_members')
+            .select('group_id')
+            .eq('user_id', userId);
+
+          if (memberErr) throw memberErr;
+
+          if (memberships && memberships.length > 0) {
+            const groupIds = memberships.map(m => m.group_id);
+            const { data: groupsData, error: groupsErr } = await supabase
+              .from('groups')
+              .select('*')
+              .in('id', groupIds);
+            
+            if (groupsErr) throw groupsErr;
+            setGroups(groupsData || []);
+            
+            if (groupsData && groupsData.length > 0) {
+              setSelectedGroup(groupsData[0].id);
+            }
+          } else {
+            setGroups([]);
+          }
+
+        } catch (err) {
+          console.error("Error loading user data from Supabase:", err);
+          triggerSaveToast("Error al cargar datos de Supabase");
+        } finally {
+          setAuthLoading(false);
+        }
+      };
+
+      // ----------------------------------------------------
+      // AUTH ACTIONS
+      // ----------------------------------------------------
+      const handleLogout = async () => {
+        setAuthLoading(true);
+        const { error } = await supabase.auth.signOut();
+        if (error) {
+          triggerSaveToast(`Error de cierre: ${error.message}`);
+          setAuthLoading(false);
+        } else {
+          triggerSaveToast("Sesión cerrada");
+        }
+      };
+
+      // ----------------------------------------------------
+      // GROUP MANAGEMENT
+      // ----------------------------------------------------
+      const handleCreateGroup = async (groupName) => {
+        if (!groupName.trim()) return;
+        try {
+          const code = "GRP-" + Math.random().toString(36).substring(2, 6).toUpperCase() + "-" + Math.floor(1000 + Math.random() * 9000);
+          
+          // 1. Create group
+          const { data: groupData, error: groupErr } = await supabase
+            .from('groups')
+            .insert({
+              name: groupName,
+              code: code,
+              created_by: user.id
+            })
+            .select()
+            .single();
+
+          if (groupErr) throw groupErr;
+
+          // 2. Add creator as member
+          const { error: memberErr } = await supabase
+            .from('group_members')
+            .insert({
+              group_id: groupData.id,
+              user_id: user.id
+            });
+
+          if (memberErr) throw memberErr;
+
+          // 3. Reload Groups
+          const updatedGroups = [...groups, groupData];
+          setGroups(updatedGroups);
+          setSelectedGroup(groupData.id);
+          triggerSaveToast(`Grupo "${groupName}" creado con éxito`);
+
+        } catch (err) {
+          console.error("Error creating group:", err);
+          triggerSaveToast(`Error: ${err.message}`);
+        }
+      };
+
+      const handleJoinGroup = async (code) => {
+        if (!code.trim()) return { success: false, message: "Código inválido" };
+        try {
+          const normalizedCode = code.trim().toUpperCase();
+          
+          // 1. Fetch group by code
+          const { data: group, error: fetchErr } = await supabase
+            .from('groups')
+            .select('*')
+            .eq('code', normalizedCode)
+            .maybeSingle();
+
+          if (fetchErr) throw fetchErr;
+          if (!group) return { success: false, message: "Código de grupo no encontrado" };
+
+          // 2. Check if already member
+          if (groups.some(g => g.id === group.id)) {
+            return { success: false, message: "Ya eres miembro de este grupo" };
+          }
+
+          // 3. Insert membership
+          const { error: joinErr } = await supabase
+            .from('group_members')
+            .insert({
+              group_id: group.id,
+              user_id: user.id
+            });
+
+          if (joinErr) throw joinErr;
+
+          // 4. Reload Groups
+          const updatedGroups = [...groups, group];
+          setGroups(updatedGroups);
+          setSelectedGroup(group.id);
+          triggerSaveToast(`Te has unido al grupo ${group.name}`);
+          return { success: true };
+
+        } catch (err) {
+          console.error("Error joining group:", err);
+          return { success: false, message: `Error: ${err.message}` };
+        }
+      };
+
+      // ----------------------------------------------------
+      // PREDICTIONS AUTO-SAVE ON BLUR
+      // ----------------------------------------------------
+      const handleSavePrediction = async (matchId, homeScore, awayScore) => {
+        if (homeScore === "" || awayScore === "") return; // Don't save incomplete predictions
+
+        const predKey = `${user.id}_${matchId}`;
+        const match = matches.find(m => m.id === matchId);
+        if (!match) return;
+
+        // Perform local locking check
+        const kickoff = new Date(match.date);
+        const sysTime = new Date(systemTime);
+        const diffMins = (kickoff.getTime() - sysTime.getTime()) / (1000 * 60);
+        if (diffMins <= 10) {
+          triggerSaveToast("Error: Las predicciones están cerradas (límite 10 min)");
+          return;
+        }
+
+        // Optimistic UI state update
+        setPredictions(prev => ({
+          ...prev,
+          [predKey]: { homeScore, awayScore }
+        }));
+
+        try {
+          // Upsert in Supabase (will fail under RLS if DB time is within 10 min of kickoff)
+          const { error } = await supabase
+            .from('predictions')
+            .upsert({
+              user_id: user.id,
+              match_id: matchId,
+              home_score: parseInt(homeScore),
+              away_score: parseInt(awayScore),
+              updated_at: new Date().toISOString()
+            }, { onConflict: 'user_id,match_id' });
+
+          if (error) throw error;
+          triggerSaveToast("Pronóstico guardado");
+        } catch (err) {
+          console.error("Supabase upsert error:", err);
+          triggerSaveToast(`Error de base de datos: ${err.message}`);
+          
+          // Revert optimistic update by fetching original predictions again
+          const { data: originalPred } = await supabase
+            .from('predictions')
+            .select('*')
+            .eq('user_id', user.id)
+            .eq('match_id', matchId)
+            .maybeSingle();
+
+          if (originalPred) {
+            setPredictions(prev => ({
+              ...prev,
+              [predKey]: { homeScore: originalPred.home_score, awayScore: originalPred.away_score }
+            }));
+          } else {
+            setPredictions(prev => {
+              const clone = { ...prev };
+              delete clone[predKey];
+              return clone;
+            });
+          }
+        }
+      };
+
+      // ----------------------------------------------------
+      // ADMIN METHODS (SYNCING & TIME TRAVEL)
+      // ----------------------------------------------------
+      const handleAdminUpdateMatch = async (matchId, data) => {
+        try {
+          const { error } = await supabase
+            .from('matches')
+            .update({
+              home_score: data.homeScore === "" || data.homeScore === null ? null : parseInt(data.homeScore),
+              away_score: data.awayScore === "" || data.awayScore === null ? null : parseInt(data.awayScore),
+              status: data.status
+            })
+            .eq('id', matchId);
+
+          if (error) throw error;
+
+          // Reload matches
+          const updatedMatches = matches.map(m => {
+            if (m.id === matchId) {
+              return {
+                ...m,
+                home_score: data.homeScore === "" || data.homeScore === null ? null : parseInt(data.homeScore),
+                away_score: data.awayScore === "" || data.awayScore === null ? null : parseInt(data.awayScore),
+                status: data.status
+              };
+            }
+            return m;
+          });
+          setMatches(updatedMatches);
+          triggerSaveToast("Resultado actualizado en Supabase");
+        } catch (err) {
+          triggerSaveToast(`Error al actualizar resultado: ${err.message}`);
+        }
+      };
+
+      // ----------------------------------------------------
+      // SCORING & DYNAMIC STANDINGS
+      // ----------------------------------------------------
+      // 10-Minute Lock Rule Helper
+      const getMatchLockState = (match, sysTimeStr) => {
+        if (match.status === "Finished" || match.status === "Live") {
+          return { locked: true, reason: match.status === "Finished" ? "Finalizado" : "En Vivo" };
+        }
+        const sysTime = new Date(sysTimeStr);
+        const kickoff = new Date(match.date);
+        
+        const diffMs = kickoff.getTime() - sysTime.getTime();
+        const diffMins = Math.floor(diffMs / (1000 * 60));
+        
+        if (diffMins <= 10) {
+          return { locked: true, reason: diffMins < 0 ? "Iniciado" : "Cerrado" };
+        }
+        return { locked: false, diffMins };
+      };
+
+      // Scoring Algorithm
+      const calculatePredictionScore = (pred, match) => {
+        if (match.status !== "Finished") return null;
+        if (!pred || pred.homeScore === null || pred.homeScore === "" || pred.awayScore === null || pred.awayScore === "") return 0;
+
+        const pHome = parseInt(pred.homeScore);
+        const pAway = parseInt(pred.awayScore);
+        const mHome = parseInt(match.home_score);
+        const mAway = parseInt(match.away_score);
+
+        // Rule 1: Exact Match (5 Points)
+        if (pHome === mHome && pAway === mAway) {
+          return 5;
+        }
+
+        // Rule 2: Outcome Match Only (3 Points)
+        const pDiff = pHome - pAway;
+        const mDiff = mHome - mAway;
+
+        if ((pDiff > 0 && mDiff > 0) || (pDiff < 0 && mDiff < 0) || (pDiff === 0 && mDiff === 0)) {
+          return 3;
+        }
+
+        // Rule 3: No Match (0 Points)
+        return 0;
+      };
+
+      // Calculate stats for current active user
+      const currentUserStats = useMemo(() => {
+        if (!user) return { points: 0, exacts: 0, outcomes: 0, missed: 0, predictedCount: 0 };
+        let points = 0;
+        let exacts = 0;
+        let outcomes = 0;
+        let missed = 0;
+        let predictedCount = 0;
+
+        matches.forEach(m => {
+          const pred = predictions[`${user.id}_${m.id}`];
+          const hasPrediction = pred && pred.homeScore !== "" && pred.awayScore !== "";
+
+          if (hasPrediction) predictedCount++;
+          
+          if (m.status === "Finished") {
+            const pts = calculatePredictionScore(pred, m);
+            if (pts !== null) {
+              points += pts;
+              if (pts === 5) exacts++;
+              else if (pts === 3) outcomes++;
+              else missed++;
+            }
+          }
+        });
+
+        return { points, exacts, outcomes, missed, predictedCount };
+      }, [user, matches, predictions]);
+
+      // Horizontal list of matches scheduled for today
+      const todayMatches = useMemo(() => {
+        const sysDateString = systemTime.split("T")[0];
+        return matches.filter(m => m.date.startsWith(sysDateString));
+      }, [matches, systemTime]);
+
+      if (authLoading) {
+        return (
+          <div className="flex-1 flex flex-col justify-center items-center bg-soccer-darker h-screen text-slate-400">
+            <Icon name="soccerBall" className="w-12 h-12 text-soccer-primary animate-spin-slow mb-4" />
+            <p className="text-xs uppercase tracking-widest font-extrabold display-font">Conectando a Supabase...</p>
+          </div>
+        );
+      }
+
+      // If not logged in, render the Auth landing page
+      if (!session) {
+        return <AuthScreen supabase={supabase} triggerSaveToast={triggerSaveToast} />;
+      }
+
+      return (
+        <div className="flex-1 flex flex-col min-h-screen pb-12">
+          
+          {/* HEADER */}
+          <header className="sticky top-0 z-40 glass border-b border-soccer-border px-4 py-3 flex items-center justify-between shadow-lg">
+            <div className="flex items-center gap-2">
+              <div className="bg-gradient-to-br from-soccer-primary to-emerald-700 p-2 rounded-xl shadow-inner shadow-soccer-primaryGlow/50">
+                <Icon name="soccerBall" className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold tracking-tight display-font text-white leading-none">MUNDIAL '26</h1>
+                <span className="text-[10px] uppercase font-bold tracking-wider text-soccer-primary">Quiniela / Polla</span>
+              </div>
+            </div>
+
+            {/* Time Travel Display & Indicator */}
+            <div className="hidden md:flex items-center gap-2 bg-soccer-darker px-3 py-1.5 rounded-full border border-slate-800">
+              <span className="relative flex h-2 w-2">
+                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isTimeSimulated ? 'bg-soccer-accent' : 'bg-soccer-primary'}`}></span>
+                <span className={`relative inline-flex rounded-full h-2 w-2 ${isTimeSimulated ? 'bg-soccer-accent' : 'bg-soccer-primary'}`}></span>
+              </span>
+              <span className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                <Icon name="clock" className="w-3.5 h-3.5 text-soccer-textMuted" />
+                Hora: <span className="font-mono text-white">{new Date(systemTime).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' })}</span>
+                {isTimeSimulated && <span className="text-[9px] bg-soccer-accent/20 text-soccer-accent px-1 py-0.5 rounded font-bold uppercase tracking-wider">Simulado</span>}
+              </span>
+            </div>
+
+            {/* Authenticated User Menu */}
+            {profile && (
+              <div className="relative group">
+                <div className="flex items-center gap-2 bg-slate-900 border border-soccer-border px-3 py-1.5 rounded-xl hover:border-soccer-primary transition-all duration-300 cursor-pointer">
+                  <span className="text-lg">{profile.avatar || "⚽"}</span>
+                  <div className="text-left">
+                    <p className="text-xs font-bold text-white leading-none">{profile.name || "Usuario"}</p>
+                    <p className="text-[9px] text-soccer-textMuted leading-tight truncate max-w-[100px]">{user.email}</p>
+                  </div>
+                  <svg className="w-3.5 h-3.5 text-soccer-textMuted group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+                
+                {/* Logout Dropdown */}
+                <div className="absolute right-0 mt-2 w-48 bg-soccer-card border border-soccer-border rounded-xl shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                  <div className="p-2 border-b border-soccer-border">
+                    <p className="text-[10px] font-bold text-soccer-textMuted uppercase tracking-wider px-2 py-1">Cuenta</p>
+                  </div>
+                  <div className="p-1">
+                    <button
+                      onClick={handleLogout}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-left text-red-400 hover:bg-red-950/20 transition-colors font-semibold"
+                    >
+                      <Icon name="logOut" className="w-3.5 h-3.5 text-red-400" />
+                      <span>Cerrar Sesión</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </header>
+
+          {/* MAIN CONTAINER */}
+          <main className="max-w-6xl mx-auto w-full px-4 mt-6 flex-1 flex flex-col gap-6">
+            
+            {/* TAB NAVIGATION */}
+            <nav className="flex bg-slate-950 p-1.5 rounded-xl border border-soccer-border">
+              <button
+                onClick={() => setActiveTab("dashboard")}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold tracking-wide transition-all ${activeTab === "dashboard" ? 'bg-soccer-primary text-soccer-darker font-bold shadow-md shadow-soccer-primary/20' : 'text-soccer-textMuted hover:text-white'}`}
+              >
+                <Icon name="calendar" className="w-4 h-4" />
+                <span>Partidos</span>
+              </button>
+              <button
+                onClick={() => setActiveTab("positions")}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold tracking-wide transition-all ${activeTab === "positions" ? 'bg-soccer-primary text-soccer-darker font-bold shadow-md shadow-soccer-primary/20' : 'text-soccer-textMuted hover:text-white'}`}
+              >
+                <Icon name="list" className="w-4 h-4" />
+                <span>Posiciones Grupos</span>
+              </button>
+              <button
+                onClick={() => setActiveTab("leaderboards")}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold tracking-wide transition-all ${activeTab === "leaderboards" ? 'bg-soccer-primary text-soccer-darker font-bold shadow-md shadow-soccer-primary/20' : 'text-soccer-textMuted hover:text-white'}`}
+              >
+                <Icon name="users" className="w-4 h-4" />
+                <span>Grupos y Rankings</span>
+              </button>
+              <button
+                onClick={() => setActiveTab("my-stats")}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold tracking-wide transition-all ${activeTab === "my-stats" ? 'bg-soccer-primary text-soccer-darker font-bold shadow-md shadow-soccer-primary/20' : 'text-soccer-textMuted hover:text-white'}`}
+              >
+                <Icon name="award" className="w-4 h-4" />
+                <span>Mis Estadísticas</span>
+              </button>
+              <button
+                onClick={() => setActiveTab("rules")}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold tracking-wide transition-all ${activeTab === "rules" ? 'bg-soccer-primary text-soccer-darker font-bold shadow-md shadow-soccer-primary/20' : 'text-soccer-textMuted hover:text-white'}`}
+              >
+                <Icon name="helpCircle" className="w-4 h-4" />
+                <span>Reglamento</span>
+              </button>
+            </nav>
+
+            {/* RENDER ACTIVE TAB */}
+            {activeTab === "dashboard" && (
+              <DashboardTab
+                todayMatches={todayMatches}
+                matches={matches}
+                predictions={predictions}
+                currentUser={user}
+                systemTime={systemTime}
+                getMatchLockState={getMatchLockState}
+                calculatePredictionScore={calculatePredictionScore}
+                handleSavePrediction={handleSavePrediction}
+              />
+            )}
+
+            {activeTab === "positions" && (
+              <PositionsTab matches={matches} />
+            )}
+
+            {activeTab === "leaderboards" && (
+              <LeaderboardTab
+                groups={groups}
+                selectedGroup={selectedGroup}
+                setSelectedGroup={setSelectedGroup}
+                currentUser={user}
+                handleCreateGroup={handleCreateGroup}
+                handleJoinGroup={handleJoinGroup}
+                predictions={predictions}
+                matches={matches}
+                calculatePredictionScore={calculatePredictionScore}
+              />
+            )}
+
+            {activeTab === "my-stats" && (
+              <StatsTab
+                currentUser={user}
+                stats={currentUserStats}
+                matches={matches}
+                predictions={predictions}
+                calculatePredictionScore={calculatePredictionScore}
+              />
+            )}
+
+            {activeTab === "rules" && <RulesTab />}
+
+          </main>
+
+          {/* ADMIN TOGGLE BUTTON */}
+          <button
+            onClick={() => setShowAdmin(!showAdmin)}
+            className="fixed bottom-4 right-4 z-40 bg-soccer-accent hover:bg-amber-400 text-soccer-darker p-3.5 rounded-full shadow-2xl transition-all duration-300 flex items-center gap-2 border border-amber-300 font-bold hover:scale-105"
+            style={{ boxShadow: '0 0 15px rgba(245, 158, 11, 0.4)' }}
+          >
+            <Icon name="settings" className="w-5 h-5 animate-spin-slow" />
+            <span className="text-xs uppercase tracking-wide">Panel Admin</span>
+          </button>
+
+          {/* FLOATING SAVE NOTIFICATION */}
+          {saveStatus.visible && (
+            <div className="fixed bottom-4 left-4 z-50 bg-soccer-primary text-soccer-darker px-4 py-2.5 rounded-xl shadow-2xl border border-soccer-primaryGlow flex items-center gap-2 font-semibold text-xs">
+              <Icon name="check" className="w-4 h-4 text-soccer-darker animate-bounce" />
+              <span>{saveStatus.message}</span>
+            </div>
+          )}
+
+          {/* ADMIN SIDEBAR SLIDE-OUT */}
+          {showAdmin && (
+            <AdminPanel
+              isOpen={showAdmin}
+              onClose={() => setShowAdmin(false)}
+              systemTime={systemTime}
+              matches={matches}
+              onUpdateMatch={handleAdminUpdateMatch}
+              onSetTime={(t) => { setSystemTime(t); setIsTimeSimulated(true); }}
+              onResetTime={() => { setSystemTime(new Date().toISOString().substring(0, 16)); setIsTimeSimulated(false); triggerSaveToast("Hora sincronizada con tiempo real"); }}
+              triggerSaveToast={triggerSaveToast}
+              setMatches={setMatches}
+            />
+          )}
+
+        </div>
+      );
+    }
+
+    // ----------------------------------------------------
+    // COMPONENT: AUTHENTICATION (LOGIN / SIGNUP) SCREEN
+    // ----------------------------------------------------
+    function AuthScreen({ supabase, triggerSaveToast }) {
+      const [mode, setMode] = useState("login");
+      const [email, setEmail] = useState("");
+      const [password, setPassword] = useState("");
+      const [name, setName] = useState("");
+      const [avatar, setAvatar] = useState("⚽");
+      const [errorMsg, setErrorMsg] = useState("");
+      const [loading, setLoading] = useState(false);
+
+      const avatars = ["⚽", "🏆", "🌟", "👟", "🥅", "🧉", "🌎", "🍀", "💎", "🦁", "🦅", "🔥"];
+
+      const handleSubmit = async (e) => {
+        e.preventDefault();
+        setErrorMsg("");
+        setLoading(true);
+
+        if (mode === "login") {
+          const { error } = await supabase.auth.signInWithPassword({ email, password });
+          if (error) {
+            setErrorMsg(error.message);
+            setLoading(false);
+          } else {
+            triggerSaveToast("Sesión iniciada correctamente");
+          }
+        } else {
+          // Sign Up
+          const { data, error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              data: {
+                name: name.trim(),
+                avatar: avatar
+              }
+            }
+          });
+          
+          if (error) {
+            setErrorMsg(error.message);
+            setLoading(false);
+          } else {
+            triggerSaveToast("Registro exitoso. ¡Iniciando sesión!");
+          }
+        }
+      };
+
+      return (
+        <div className="min-h-screen flex flex-col justify-center items-center px-4 bg-gradient-to-br from-soccer-darker via-[#080d1a] to-soccer-darker">
+          
+          {/* Logo & Headline */}
+          <div className="flex flex-col items-center mb-6 text-center">
+            <div className="bg-gradient-to-br from-soccer-primary to-emerald-700 p-3.5 rounded-2xl shadow-lg shadow-soccer-primaryGlow/25 mb-3">
+              <Icon name="soccerBall" className="w-10 h-10 text-white animate-spin-slow" />
+            </div>
+            <h1 className="text-3xl font-black display-font tracking-tight text-white">POLLA MUNDIAL 2026</h1>
+            <p className="text-xs text-soccer-textMuted uppercase font-bold tracking-wider mt-1">Copa del Mundo Quiniela de Pronósticos</p>
+          </div>
+
+          {/* Form Card */}
+          <div className="w-full max-w-md glass rounded-3xl p-6 md:p-8 shadow-2xl relative overflow-hidden border border-soccer-border/80">
+            
+            {/* Mode Switcher */}
+            <div className="flex border-b border-soccer-border/60 pb-4 mb-6">
+              <button
+                onClick={() => { setMode("login"); setErrorMsg(""); }}
+                className={`flex-1 py-2 text-center text-xs font-bold uppercase tracking-wider transition-colors ${mode === "login" ? 'text-soccer-primary border-b-2 border-soccer-primary' : 'text-soccer-textMuted hover:text-white'}`}
+              >
+                Iniciar Sesión
+              </button>
+              <button
+                onClick={() => { setMode("signup"); setErrorMsg(""); }}
+                className={`flex-1 py-2 text-center text-xs font-bold uppercase tracking-wider transition-colors ${mode === "signup" ? 'text-soccer-primary border-b-2 border-soccer-primary' : 'text-soccer-textMuted hover:text-white'}`}
+              >
+                Registrarse
+              </button>
+            </div>
+
+            {errorMsg && (
+              <div className="bg-red-950/40 border border-red-800 text-red-300 px-3 py-2.5 rounded-xl text-xs flex items-center gap-2 mb-4">
+                <Icon name="alertCircle" className="w-4 h-4 text-red-400" />
+                <span>{errorMsg}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              
+              {/* Optional Name (Signup only) */}
+              {mode === "signup" && (
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-soccer-textMuted block mb-1">Nombre Completo</label>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Diego Vásquez"
+                    className="w-full bg-slate-950 border border-soccer-border px-3.5 py-2.5 rounded-xl text-xs text-white focus:outline-none focus:border-soccer-primary focus:ring-1 focus:ring-soccer-primary transition-all"
+                    required
+                  />
+                </div>
+              )}
+
+              {/* Email */}
+              <div>
+                <label className="text-[10px] uppercase font-bold text-soccer-textMuted block mb-1">Correo Electrónico</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="ejemplo@correo.com"
+                  className="w-full bg-slate-950 border border-soccer-border px-3.5 py-2.5 rounded-xl text-xs text-white focus:outline-none focus:border-soccer-primary focus:ring-1 focus:ring-soccer-primary transition-all"
+                  required
+                />
+              </div>
+
+              {/* Password */}
+              <div>
+                <label className="text-[10px] uppercase font-bold text-soccer-textMuted block mb-1">Contraseña</label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full bg-slate-950 border border-soccer-border px-3.5 py-2.5 rounded-xl text-xs text-white focus:outline-none focus:border-soccer-primary focus:ring-1 focus:ring-soccer-primary transition-all"
+                  minLength="6"
+                  required
+                />
+              </div>
+
+              {/* Optional Avatar Selection (Signup only) */}
+              {mode === "signup" && (
+                <div className="space-y-2">
+                  <label className="text-[10px] uppercase font-bold text-soccer-textMuted block">Selecciona tu Avatar/Emoji</label>
+                  <div className="grid grid-cols-6 gap-2 bg-slate-950/80 p-2.5 rounded-xl border border-soccer-border/60">
+                    {avatars.map(av => (
+                      <button
+                        key={av}
+                        type="button"
+                        onClick={() => setAvatar(av)}
+                        className={`text-xl p-1.5 rounded-lg transition-all ${avatar === av ? 'bg-soccer-primary text-soccer-darker scale-105 border border-soccer-primaryGlow shadow' : 'hover:bg-slate-800'}`}
+                      >
+                        {av}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-soccer-primary hover:bg-emerald-400 disabled:opacity-50 text-soccer-darker text-xs font-black uppercase tracking-wider py-3 rounded-xl transition-all shadow-lg shadow-soccer-primary/10 mt-6 flex justify-center items-center gap-2"
+              >
+                {loading && <Icon name="soccerBall" className="w-4 h-4 animate-spin text-soccer-darker" />}
+                <span>{mode === "login" ? "Iniciar Sesión" : "Crear mi Cuenta"}</span>
+              </button>
+
+            </form>
+          </div>
+        </div>
+      );
+    }
+
+    // ----------------------------------------------------
+    // SUB-COMPONENTS: DASHBOARD TAB
+    // ----------------------------------------------------
+    function DashboardTab({
+      todayMatches,
+      matches,
+      predictions,
+      currentUser,
+      systemTime,
+      getMatchLockState,
+      calculatePredictionScore,
+      handleSavePrediction
+    }) {
+      const [filterStage, setFilterStage] = useState("all");
+
+      const filteredMatches = useMemo(() => {
+        if (filterStage === "group") {
+          return matches.filter(m => m.stage.includes("Grupo"));
+        }
+        if (filterStage === "knockout") {
+          return matches.filter(m => !m.stage.includes("Grupo"));
+        }
+        return matches;
+      }, [matches, filterStage]);
+
+      return (
+        <div className="space-y-6">
+          {/* SECTION: TODAY'S MATCHES */}
+          <div>
+            <h2 className="text-sm uppercase tracking-wider font-extrabold text-soccer-primary flex items-center gap-2 mb-3 display-font">
+              <span className="h-2 w-2 bg-soccer-primary rounded-full animate-pulse"></span>
+              Partidos de Hoy ({new Date(systemTime).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })})
+            </h2>
+
+            {todayMatches.length === 0 ? (
+              <div className="glass rounded-2xl p-6 text-center text-soccer-textMuted border border-slate-800 text-xs">
+                No hay partidos programados para este día. Utiliza el "Panel Admin" para simular fechas y probar cierres.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {todayMatches.map(match => (
+                  <MatchCard
+                    key={match.id}
+                    match={match}
+                    prediction={predictions[`${currentUser.id}_${match.id}`]}
+                    systemTime={systemTime}
+                    getMatchLockState={getMatchLockState}
+                    calculatePredictionScore={calculatePredictionScore}
+                    onSave={handleSavePrediction}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* SECTION: TOURNAMENT CALENDAR */}
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+              <h2 className="text-sm uppercase tracking-wider font-extrabold text-white flex items-center gap-2 display-font">
+                <Icon name="calendar" className="w-4 h-4 text-soccer-primary" />
+                Calendario del Torneo Real
+              </h2>
+
+              <div className="flex bg-slate-950 p-1 rounded-lg border border-soccer-border text-xs w-full sm:w-auto">
+                <button
+                  onClick={() => setFilterStage("all")}
+                  className={`flex-1 sm:flex-none px-3 py-1.5 rounded-md font-medium transition-colors ${filterStage === "all" ? 'bg-slate-800 text-white' : 'text-soccer-textMuted hover:text-white'}`}
+                >
+                  Todos
+                </button>
+                <button
+                  onClick={() => setFilterStage("group")}
+                  className={`flex-1 sm:flex-none px-3 py-1.5 rounded-md font-medium transition-colors ${filterStage === "group" ? 'bg-slate-800 text-white' : 'text-soccer-textMuted hover:text-white'}`}
+                >
+                  Fase de Grupos
+                </button>
+                <button
+                  onClick={() => setFilterStage("knockout")}
+                  className={`flex-1 sm:flex-none px-3 py-1.5 rounded-md font-medium transition-colors ${filterStage === "knockout" ? 'bg-slate-800 text-white' : 'text-soccer-textMuted hover:text-white'}`}
+                >
+                  Eliminatorias
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {filteredMatches.map(match => (
+                <MatchCard
+                  key={match.id}
+                  match={match}
+                  prediction={predictions[`${currentUser.id}_${match.id}`]}
+                  systemTime={systemTime}
+                  getMatchLockState={getMatchLockState}
+                  calculatePredictionScore={calculatePredictionScore}
+                  onSave={handleSavePrediction}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ----------------------------------------------------
+    // COMPONENT: MATCH CARD (REAL INTEGRATION)
+    // ----------------------------------------------------
+    function MatchCard({
+      match,
+      prediction,
+      systemTime,
+      getMatchLockState,
+      calculatePredictionScore,
+      onSave
+    }) {
+      const lockState = getMatchLockState(match, systemTime);
+      const points = calculatePredictionScore(prediction, match);
+
+      const [homeVal, setHomeVal] = useState(prediction?.homeScore !== undefined ? prediction.homeScore : "");
+      const [awayVal, setAwayVal] = useState(prediction?.awayScore !== undefined ? prediction.awayScore : "");
+
+      // Sync local state if prediction from DB changes
+      useEffect(() => {
+        setHomeVal(prediction?.homeScore !== undefined ? prediction.homeScore : "");
+        setAwayVal(prediction?.awayScore !== undefined ? prediction.awayScore : "");
+      }, [prediction]);
+
+      const handleBlur = () => {
+        if (homeVal !== "" && awayVal !== "") {
+          onSave(match.id, homeVal, awayVal);
+        }
+      };
+
+      const kickoffDate = new Date(match.date);
+      const formattedDate = kickoffDate.toLocaleString('es-ES', {
+        day: '2-digit',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
+      const getCountdownText = () => {
+        if (match.status === "Finished") return "Finalizado";
+        if (match.status === "Live") return "En Vivo";
+
+        const diffMs = kickoffDate.getTime() - new Date(systemTime).getTime();
+        const diffMins = Math.floor(diffMs / (1000 * 60));
+        
+        if (diffMins < 0) return "Iniciado / En espera";
+        if (diffMins <= 10) return "Bloqueado";
+        
+        const diffHours = Math.floor(diffMins / 60);
+        if (diffHours < 1) return `Cierra en ${diffMins} min`;
+        if (diffHours < 24) return `Cierra en ${diffHours}h ${diffMins % 60}m`;
+        
+        return `Empieza en ${Math.floor(diffHours / 24)}d ${diffHours % 24}h`;
+      };
+
+      const homeFlag = TEAM_FLAGS[match.home_team_name] || "🏳️";
+      const awayFlag = TEAM_FLAGS[match.away_team_name] || "🏳️";
+
+      return (
+        <div className={`glass rounded-2xl p-4 transition-all duration-300 hover:-translate-y-0.5 shadow-md flex flex-col justify-between ${match.status === 'Live' ? 'border-red-500/50 shadow-red-950/20 shadow-lg' : ''} ${points === 5 ? 'glass-gold-glowing' : ''} ${points === 3 ? 'glass-glowing' : ''}`}>
+          
+          <div className="flex justify-between items-center mb-3">
+            <span className="text-[10px] font-bold tracking-wider text-soccer-textMuted uppercase">{match.stage}</span>
+            <div className="flex items-center gap-1.5">
+              {match.status === "Live" && (
+                <span className="flex items-center gap-1 bg-red-950 text-red-400 border border-red-800 text-[9px] px-2 py-0.5 rounded-full font-bold uppercase">
+                  <span className="h-1.5 w-1.5 rounded-full bg-red-500 live-dot"></span>
+                  En Vivo
+                </span>
+              )}
+              {match.status === "Finished" && (
+                <span className="bg-slate-800 text-slate-400 text-[9px] px-2 py-0.5 rounded-full font-bold uppercase">
+                  Finalizado
+                </span>
+              )}
+              {match.status === "Scheduled" && !lockState.locked && (
+                <span className="bg-emerald-950 text-emerald-400 border border-emerald-800 text-[9px] px-2 py-0.5 rounded-full font-bold uppercase">
+                  Abierto
+                </span>
+              )}
+              {match.status === "Scheduled" && lockState.locked && (
+                <span className="bg-amber-950 text-amber-500 border border-amber-800 text-[9px] px-2 py-0.5 rounded-full font-bold uppercase flex items-center gap-1">
+                  <Icon name="lock" className="w-2.5 h-2.5" />
+                  Cerrado
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-7 items-center my-2 gap-1 text-center">
+            {/* Home Team */}
+            <div className="col-span-2 flex flex-col items-center gap-1">
+              <span className="text-3xl filter drop-shadow-md select-none">{homeFlag}</span>
+              <span className="text-xs font-bold text-slate-100 max-w-[80px] truncate leading-tight">{match.home_team_name}</span>
+            </div>
+
+            {/* Prediction inputs */}
+            <div className="col-span-3 flex flex-col justify-center items-center gap-2">
+              <div className="flex items-center gap-1.5 justify-center">
+                <input
+                  type="number"
+                  disabled={lockState.locked}
+                  value={homeVal}
+                  onChange={(e) => setHomeVal(e.target.value === "" ? "" : Math.max(0, parseInt(e.target.value)))}
+                  onBlur={handleBlur}
+                  placeholder="-"
+                  className={`w-10 h-10 rounded-xl bg-slate-950 border text-center text-sm font-extrabold focus:outline-none transition-all ${
+                    lockState.locked 
+                      ? 'border-slate-800 text-slate-500 cursor-not-allowed bg-slate-900/50' 
+                      : 'border-soccer-border text-white focus:border-soccer-primary focus:ring-1 focus:ring-soccer-primary'
+                  }`}
+                  min="0"
+                />
+
+                <div className="flex flex-col items-center px-1">
+                  <span className="text-xs text-soccer-textMuted font-bold font-mono">VS</span>
+                  {(match.status === "Finished" || match.status === "Live") && (
+                    <span className="text-xs font-black text-soccer-accent bg-soccer-accent/10 border border-soccer-accent/20 px-1.5 py-0.5 rounded-md mt-1 font-mono">
+                      {match.home_score} - {match.away_score}
+                    </span>
+                  )}
+                </div>
+
+                <input
+                  type="number"
+                  disabled={lockState.locked}
+                  value={awayVal}
+                  onChange={(e) => setAwayVal(e.target.value === "" ? "" : Math.max(0, parseInt(e.target.value)))}
+                  onBlur={handleBlur}
+                  placeholder="-"
+                  className={`w-10 h-10 rounded-xl bg-slate-950 border text-center text-sm font-extrabold focus:outline-none transition-all ${
+                    lockState.locked 
+                      ? 'border-slate-800 text-slate-500 cursor-not-allowed bg-slate-900/50' 
+                      : 'border-soccer-border text-white focus:border-soccer-primary focus:ring-1 focus:ring-soccer-primary'
+                  }`}
+                  min="0"
+                />
+              </div>
+            </div>
+
+            {/* Away Team */}
+            <div className="col-span-2 flex flex-col items-center gap-1">
+              <span className="text-3xl filter drop-shadow-md select-none">{awayFlag}</span>
+              <span className="text-xs font-bold text-slate-100 max-w-[80px] truncate leading-tight">{match.away_team_name}</span>
+            </div>
+          </div>
+
+          <div className="mt-3 pt-2.5 border-t border-slate-800/60 flex justify-between items-center text-xs">
+            <span className="text-soccer-textMuted font-medium flex items-center gap-1.5 font-mono">
+              <Icon name="clock" className="w-3.5 h-3.5" />
+              {formattedDate}
+            </span>
+            <span className={`font-semibold ${match.status === 'Live' ? 'text-red-400 font-bold' : 'text-slate-300'}`}>
+              {getCountdownText()}
+            </span>
+          </div>
+
+          {/* Points indicator */}
+          {match.status === "Finished" && (
+            <div className="mt-3">
+              {prediction ? (
+                <div className={`p-2 rounded-xl text-center border flex items-center justify-between text-xs ${
+                  points === 5 
+                    ? 'bg-amber-950/40 text-amber-300 border-amber-700/50' 
+                    : points === 3 
+                      ? 'bg-emerald-950/40 text-emerald-300 border-emerald-700/50' 
+                      : 'bg-slate-900/60 text-slate-400 border-slate-800'
+                }`}>
+                  <span className="font-medium">
+                    Tu Pred: <span className="font-bold font-mono">{prediction.homeScore} - {prediction.awayScore}</span>
+                  </span>
+                  <span className="font-extrabold uppercase tracking-wide">
+                    {points === 5 && "⭐ +5 pts (Marcador)"}
+                    {points === 3 && "✓ +3 pts (Resultado)"}
+                    {points === 0 && "✗ +0 pts (Fallido)"}
+                  </span>
+                </div>
+              ) : (
+                <div className="p-2 rounded-xl text-center border bg-slate-900/60 text-slate-650 border-slate-800 text-xs">
+                  Sin pronóstico (0 pts)
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ----------------------------------------------------
+    // COMPONENT: GROUP STANDINGS (POSICIONES DE GRUPOS)
+    // ----------------------------------------------------
+    function PositionsTab({ matches }) {
+      const groupLetters = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"];
+
+      const standingsByGroup = useMemo(() => {
+        // Initialize tables
+        const tables = {};
+        groupLetters.forEach(l => {
+          tables[l] = {};
+        });
+
+        // Initialize team stats
+        Object.entries(TEAM_GROUPS).forEach(([team, letter]) => {
+          tables[letter][team] = {
+            name: team,
+            played: 0, won: 0, drawn: 0, lost: 0,
+            goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0
+          };
+        });
+
+        // Loop matches and calculate standings
+        matches.forEach(match => {
+          if (match.status === "Finished" && match.home_score !== null && match.away_score !== null) {
+            const hTeam = match.home_team_name;
+            const aTeam = match.away_team_name;
+            
+            const groupLetter = TEAM_GROUPS[hTeam];
+            if (groupLetter && tables[groupLetter] && tables[groupLetter][hTeam] && tables[groupLetter][aTeam]) {
+              const hStats = tables[groupLetter][hTeam];
+              const aStats = tables[groupLetter][aTeam];
+
+              const hGoals = parseInt(match.home_score);
+              const aGoals = parseInt(match.away_score);
+
+              // Increment goals
+              hStats.goalsFor += hGoals;
+              hStats.goalsAgainst += aGoals;
+              aStats.goalsFor += aGoals;
+              aStats.goalsAgainst += hGoals;
+
+              hStats.played += 1;
+              aStats.played += 1;
+
+              if (hGoals > aGoals) {
+                hStats.won += 1;
+                hStats.points += 3;
+                aStats.lost += 1;
+              } else if (hGoals < aGoals) {
+                aStats.won += 1;
+                aStats.points += 3;
+                hStats.lost += 1;
+              } else {
+                hStats.drawn += 1;
+                hStats.points += 1;
+                aStats.drawn += 1;
+                aStats.points += 1;
+              }
+            }
+          }
+        });
+
+        // Sort each group table
+        const sortedTables = {};
+        groupLetters.forEach(letter => {
+          const teamsArray = Object.values(tables[letter]);
+          teamsArray.forEach(t => {
+            t.goalDiff = t.goalsFor - t.goalsAgainst;
+          });
+          
+          sortedTables[letter] = teamsArray.sort((a, b) => {
+            if (b.points !== a.points) return b.points - a.points;
+            if (b.goalDiff !== a.goalDiff) return b.goalDiff - a.goalDiff;
+            if (b.goalsFor !== a.goalsFor) return b.goalsFor - a.goalsFor;
+            return a.name.localeCompare(b.name);
+          });
+        });
+
+        return sortedTables;
+      }, [matches]);
+
+      return (
+        <div className="space-y-6">
+          <h2 className="text-md uppercase tracking-wider font-extrabold text-white flex items-center gap-2 display-font">
+            <Icon name="list" className="w-4 h-4 text-soccer-primary" />
+            Tablas de Posiciones Oficiales 2026
+          </h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {groupLetters.map(letter => (
+              <div key={letter} className="glass rounded-2xl p-4 space-y-3">
+                <h3 className="text-xs font-black uppercase tracking-wider text-soccer-primary display-font border-b border-slate-800 pb-2">
+                  Grupo {letter}
+                </h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-[11px]">
+                    <thead>
+                      <tr className="text-soccer-textMuted font-bold border-b border-soccer-border/40">
+                        <th className="py-1.5 w-6 text-center">#</th>
+                        <th className="py-1.5 pl-1">Equipo</th>
+                        <th className="py-1.5 text-center">PJ</th>
+                        <th className="py-1.5 text-center">GD</th>
+                        <th className="py-1.5 text-center font-bold text-white">PTS</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/30">
+                      {standingsByGroup[letter].map((team, idx) => (
+                        <tr key={team.name} className="hover:bg-slate-800/20">
+                          <td className="py-2 text-center font-mono font-bold text-soccer-textMuted">
+                            {idx + 1}
+                          </td>
+                          <td className="py-2 pl-1 font-semibold flex items-center gap-1.5 truncate max-w-[100px]">
+                            <span className="text-base select-none">{TEAM_FLAGS[team.name] || "🏳️"}</span>
+                            <span className="truncate">{team.name}</span>
+                          </td>
+                          <td className="py-2 text-center font-mono">{team.played}</td>
+                          <td className="py-2 text-center font-mono text-soccer-textMuted">
+                            {team.goalDiff > 0 ? `+${team.goalDiff}` : team.goalDiff}
+                          </td>
+                          <td className="py-2 text-center font-mono font-black text-white">{team.points}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // ----------------------------------------------------
+    // SUB-COMPONENTS: LEADERBOARDS & GROUPS TAB
+    // ----------------------------------------------------
+    function LeaderboardTab({
+      groups,
+      selectedGroup,
+      setSelectedGroup,
+      currentUser,
+      handleCreateGroup,
+      handleJoinGroup,
+      predictions,
+      matches,
+      calculatePredictionScore
+    }) {
+      const [newGroupName, setNewGroupName] = useState("");
+      const [joinCode, setJoinCode] = useState("");
+      const [joinError, setJoinError] = useState("");
+      
+      const [leaderboardData, setLeaderboardData] = useState([]);
+      const [membersPredictions, setGroupMembersPredictions] = useState({});
+      const [selectedUserDetail, setSelectedUserDetail] = useState(null);
+      const [loadingStandings, setLoadingStandings] = useState(false);
+
+      // Fetch group members and their predictions from database dynamically
+      const fetchGroupLeaderboard = async (groupId) => {
+        if (!groupId) return;
+        setLoadingStandings(true);
+        try {
+          // 1. Fetch group members profiles
+          const { data: members, error: mError } = await supabase
+            .from('group_members')
+            .select('user_id, joined_at, profiles:profiles(id, name, avatar)')
+            .eq('group_id', groupId);
+
+          if (mError) throw mError;
+          if (!members || members.length === 0) {
+            setLeaderboardData([]);
+            setLoadingStandings(false);
+            return;
+          }
+
+          const memberIds = members.map(m => m.user_id);
+
+          // 2. Fetch locked/finished predictions of all group members
+          const { data: preds, error: pError } = await supabase
+            .from('predictions')
+            .select('user_id, match_id, home_score, away_score')
+            .in('user_id', memberIds);
+
+          if (pError) throw pError;
+
+          // Map predictions to dictionary object
+          const allPreds = {};
+          preds?.forEach(p => {
+            allPreds[`${p.user_id}_${p.match_id}`] = {
+              homeScore: p.home_score,
+              awayScore: p.away_score
+            };
+          });
+
+          // 3. Calculate points dynamically for each user
+          const standings = members.map(m => {
+            const profile = m.profiles || { name: 'Desconocido', avatar: '👤' };
+            const uId = m.user_id;
+            let totalPoints = 0;
+            let exactMatches = 0;
+            let outcomeMatches = 0;
+            let missedMatches = 0;
+            let totalPredicted = 0;
+
+            matches.forEach(match => {
+              if (match.status === "Finished") {
+                const pred = allPreds[`${uId}_${match.id}`];
+                if (pred && pred.homeScore !== null && pred.homeScore !== "") {
+                  totalPredicted++;
+                  const pts = calculatePredictionScore(pred, match);
+                  totalPoints += pts;
+                  if (pts === 5) exactMatches++;
+                  else if (pts === 3) outcomeMatches++;
+                  else missedMatches++;
+                }
+              }
+            });
+
+            return {
+              userId: uId,
+              name: profile.name,
+              avatar: profile.avatar,
+              totalPoints,
+              exactMatches,
+              outcomeMatches,
+              missedMatches,
+              totalPredicted
+            };
+          });
+
+          // Sort standings: Points desc, exact matches desc, name asc
+          standings.sort((a, b) => {
+            if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
+            if (b.exactMatches !== a.exactMatches) return b.exactMatches - a.exactMatches;
+            return a.name.localeCompare(b.name);
+          });
+
+          setLeaderboardData(standings);
+          setGroupMembersPredictions(allPreds);
+
+        } catch (err) {
+          console.error("Error fetching standings:", err);
+        } finally {
+          setLoadingStandings(false);
+        }
+      };
+
+      // Load standings when selected group changes
+      useEffect(() => {
+        if (selectedGroup) {
+          fetchGroupLeaderboard(selectedGroup);
+        }
+      }, [selectedGroup, matches]);
+
+      const onSubmitCreate = (e) => {
+        e.preventDefault();
+        handleCreateGroup(newGroupName);
+        setNewGroupName("");
+      };
+
+      const onSubmitJoin = async (e) => {
+        e.preventDefault();
+        setJoinError("");
+        const res = await handleJoinGroup(joinCode);
+        if (res && !res.success) {
+          setJoinError(res.message);
+        } else {
+          setJoinCode("");
+        }
+      };
+
+      const currentGroup = groups.find(g => g.id === selectedGroup);
+
+      return (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            
+            {/* Left Sidebar */}
+            <div className="space-y-6 md:col-span-1">
+              
+              {/* GROUPS SELECTOR */}
+              <div className="glass rounded-2xl p-4 space-y-3">
+                <h3 className="text-xs uppercase font-extrabold tracking-wider text-soccer-primary display-font">Mis Grupos</h3>
+                <div className="space-y-1.5">
+                  {groups.map(g => (
+                    <button
+                      key={g.id}
+                      onClick={() => { setSelectedGroup(g.id); setSelectedUserDetail(null); }}
+                      className={`w-full text-left px-3 py-2.5 rounded-xl text-xs flex justify-between items-center transition-all ${selectedGroup === g.id ? 'bg-soccer-primary text-soccer-darker font-bold' : 'text-slate-300 hover:bg-slate-800'}`}
+                    >
+                      <span className="truncate">{g.name}</span>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-mono ${selectedGroup === g.id ? 'bg-soccer-darker/10 text-soccer-darker' : 'bg-slate-900 text-soccer-textMuted'}`}>
+                        miembro
+                      </span>
+                    </button>
+                  ))}
+                  {groups.length === 0 && (
+                    <p className="text-[10px] text-soccer-textMuted italic p-1">Aún no perteneces a ningún grupo.</p>
+                  )}
+                </div>
+              </div>
+
+              {/* JOIN GROUP */}
+              <div className="glass rounded-2xl p-4">
+                <h3 className="text-xs uppercase font-extrabold tracking-wider text-white display-font mb-3">Unirse a un Grupo</h3>
+                <form onSubmit={onSubmitJoin} className="space-y-2">
+                  <input
+                    type="text"
+                    value={joinCode}
+                    onChange={(e) => setJoinCode(e.target.value)}
+                    placeholder="Código de Invitación"
+                    className="w-full bg-slate-950 border border-soccer-border px-3 py-2 rounded-xl text-xs text-white focus:outline-none focus:border-soccer-primary focus:ring-1 focus:ring-soccer-primary"
+                  />
+                  {joinError && <p className="text-[10px] text-red-400 font-semibold">{joinError}</p>}
+                  <button
+                    type="submit"
+                    className="w-full bg-slate-900 border border-soccer-border hover:border-soccer-primary hover:bg-soccer-primary hover:text-soccer-darker text-white text-xs py-2 rounded-xl transition-all font-bold"
+                  >
+                    Unirme con Código
+                  </button>
+                </form>
+              </div>
+
+              {/* CREATE GROUP */}
+              <div className="glass rounded-2xl p-4">
+                <h3 className="text-xs uppercase font-extrabold tracking-wider text-white display-font mb-3">Crear Grupo Nuevo</h3>
+                <form onSubmit={onSubmitCreate} className="space-y-2">
+                  <input
+                    type="text"
+                    value={newGroupName}
+                    onChange={(e) => setNewGroupName(e.target.value)}
+                    placeholder="Nombre del Grupo"
+                    className="w-full bg-slate-950 border border-soccer-border px-3 py-2 rounded-xl text-xs text-white focus:outline-none focus:border-soccer-primary focus:ring-1 focus:ring-soccer-primary"
+                    required
+                  />
+                  <button
+                    type="submit"
+                    className="w-full bg-soccer-primary hover:bg-emerald-400 text-soccer-darker text-xs py-2 rounded-xl transition-all font-bold shadow-md shadow-soccer-primary/20"
+                  >
+                    Crear Grupo
+                  </button>
+                </form>
+              </div>
+
+            </div>
+
+            {/* Standings Table Area */}
+            <div className="md:col-span-2 space-y-6">
+              
+              {currentGroup ? (
+                <div className="glass rounded-2xl p-5 space-y-4">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h2 className="text-lg font-bold display-font text-white">{currentGroup.name}</h2>
+                      <p className="text-xs text-soccer-textMuted flex items-center gap-1.5">
+                        <span>Código de invitación:</span>
+                        <span className="font-mono bg-slate-950 border border-soccer-border text-white px-2 py-0.5 rounded font-bold">{currentGroup.code}</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  {loadingStandings ? (
+                    <div className="py-12 flex justify-center items-center text-soccer-textMuted text-xs gap-2">
+                      <Icon name="soccerBall" className="w-5 h-5 animate-spin text-soccer-primary" />
+                      <span>Cargando tabla de posiciones...</span>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs border-collapse">
+                        <thead>
+                          <tr className="border-b border-soccer-border/80 text-soccer-textMuted uppercase tracking-wider text-[10px] font-bold">
+                            <th className="py-2.5 px-3 text-center">Pos</th>
+                            <th className="py-2.5 px-3">Usuario</th>
+                            <th className="py-2.5 px-3 text-center">Puntos</th>
+                            <th className="py-2.5 px-3 text-center hidden sm:table-cell">Marcador (5p)</th>
+                            <th className="py-2.5 px-3 text-center hidden sm:table-cell">Resultado (3p)</th>
+                            <th className="py-2.5 px-3 text-center hidden md:table-cell">Pronosticados</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-800/40">
+                          {leaderboardData.map((standing, index) => {
+                            const isCurrentUser = standing.userId === currentUser.id;
+                            return (
+                              <tr
+                                key={standing.userId}
+                                onClick={() => setSelectedUserDetail(standing)}
+                                className={`hover:bg-slate-800/30 transition-colors cursor-pointer group ${isCurrentUser ? 'bg-soccer-primary/5 font-semibold text-soccer-primary' : ''}`}
+                              >
+                                <td className="py-3 px-3 text-center">
+                                  <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-[11px] font-bold font-mono ${
+                                    index === 0 
+                                      ? 'bg-amber-500 text-soccer-darker font-black shadow shadow-amber-500/30' 
+                                      : index === 1 
+                                        ? 'bg-slate-300 text-soccer-darker' 
+                                        : index === 2 
+                                          ? 'bg-amber-700 text-white' 
+                                          : 'bg-slate-900 text-slate-400'
+                                  }`}>
+                                    {index + 1}
+                                  </span>
+                                </td>
+                                <td className="py-3 px-3 flex items-center gap-2">
+                                  <span className="text-base">{standing.avatar}</span>
+                                  <span className="group-hover:text-soccer-primary transition-colors truncate max-w-[120px] sm:max-w-none">{standing.name}</span>
+                                  {isCurrentUser && <span className="text-[9px] bg-soccer-primary/20 text-soccer-primary px-1.5 py-0.5 rounded font-bold">Tú</span>}
+                                </td>
+                                <td className="py-3 px-3 text-center font-bold text-white font-mono text-sm">
+                                  {standing.totalPoints}
+                                </td>
+                                <td className="py-3 px-3 text-center font-semibold text-amber-400 font-mono hidden sm:table-cell">
+                                  {standing.exactMatches}
+                                </td>
+                                <td className="py-3 px-3 text-center font-semibold text-emerald-400 font-mono hidden sm:table-cell">
+                                  {standing.outcomeMatches}
+                                </td>
+                                <td className="py-3 px-3 text-center text-soccer-textMuted font-mono hidden md:table-cell">
+                                  {standing.totalPredicted}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                          {leaderboardData.length === 0 && (
+                            <tr>
+                              <td colSpan="6" className="py-8 text-center text-soccer-textMuted">El grupo no tiene miembros registrados.</td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                  <p className="text-[10px] text-soccer-textMuted italic mt-2">
+                    💡 Haz clic en la fila de cualquier usuario para inspeccionar sus pronósticos finalizados/cerrados.
+                  </p>
+                </div>
+              ) : (
+                <div className="glass rounded-2xl p-6 text-center text-soccer-textMuted border border-slate-800 text-xs">
+                  Selecciona, únete o crea un grupo en el menú lateral para ver la tabla de posiciones.
+                </div>
+              )}
+
+              {/* USER DETAILS DRAWER */}
+              {selectedUserDetail && (
+                <div className="glass rounded-2xl p-5 border-soccer-primary/20 shadow-xl space-y-4">
+                  <div className="flex justify-between items-center border-b border-soccer-border pb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">{selectedUserDetail.avatar}</span>
+                      <div>
+                        <h3 className="font-bold text-white">Pronósticos de {selectedUserDetail.name}</h3>
+                        <p className="text-[10px] text-soccer-textMuted">Detalle de puntos (solo cerrados/finalizados)</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setSelectedUserDetail(null)}
+                      className="text-soccer-textMuted hover:text-white text-xs font-semibold px-2.5 py-1 rounded-lg hover:bg-slate-800 transition-colors"
+                    >
+                      Cerrar Vista
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[350px] overflow-y-auto pr-1">
+                    {matches.map(m => {
+                      const predKey = `${selectedUserDetail.userId}_${m.id}`;
+                      const pred = membersPredictions[predKey];
+                      const pts = calculatePredictionScore(pred, m);
+
+                      return (
+                        <div key={m.id} className="bg-soccer-darker/60 border border-slate-800 rounded-xl p-3 flex justify-between items-center text-xs">
+                          <div className="flex flex-col gap-1 w-2/3">
+                            <span className="text-[8px] font-bold text-soccer-textMuted uppercase truncate">{m.stage}</span>
+                            <div className="flex items-center gap-1 font-semibold text-slate-200">
+                              <span>{TEAM_FLAGS[m.home_team_name] || "🏳️"} {m.home_team_name}</span>
+                              <span className="text-[10px] text-soccer-textMuted">vs</span>
+                              <span>{TEAM_FLAGS[m.away_team_name] || "🏳️"} {m.away_team_name}</span>
+                            </div>
+                          </div>
+                          
+                          <div className="text-right flex flex-col items-end gap-1">
+                            {pred ? (
+                              <span className="font-mono bg-slate-900 border border-slate-800 text-white px-2 py-0.5 rounded font-black text-xs">
+                                {pred.homeScore} - {pred.awayScore}
+                              </span>
+                            ) : (
+                              <span className="text-slate-650 italic text-[10px]">Oculto / Sin pred</span>
+                            )}
+                            
+                            {m.status === "Finished" && (
+                              <span className={`text-[9px] font-bold uppercase rounded px-1.5 ${
+                                pts === 5 
+                                  ? 'bg-amber-950 text-amber-400 border border-amber-800' 
+                                  : pts === 3 
+                                    ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' 
+                                    : 'bg-slate-800 text-slate-500'
+                              }`}>
+                                +{pts} pts
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ----------------------------------------------------
+    // SUB-COMPONENTS: MY STATS TAB
+    // ----------------------------------------------------
+    function StatsTab({ currentUser, stats, matches, predictions, calculatePredictionScore }) {
+      const userMatchesHistory = useMemo(() => {
+        return matches.map(m => {
+          const pred = predictions[`${currentUser.id}_${m.id}`];
+          const pts = calculatePredictionScore(pred, m);
+          return { match: m, pred, points: pts };
+        });
+      }, [currentUser, matches, predictions]);
+
+      const accuracy = stats.predictedCount > 0 
+        ? Math.round(((stats.exacts + stats.outcomes) / stats.predictedCount) * 100) 
+        : 0;
+
+      return (
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div className="glass rounded-2xl p-4 text-center">
+              <span className="text-soccer-textMuted text-[10px] uppercase font-bold tracking-wider">Puntos Totales</span>
+              <p className="text-3xl font-black text-white font-mono mt-1 display-font">{stats.points}</p>
+            </div>
+            <div className="glass rounded-2xl p-4 text-center">
+              <span className="text-soccer-textMuted text-[10px] uppercase font-bold tracking-wider">Marcador Exacto (5p)</span>
+              <p className="text-3xl font-black text-soccer-accent font-mono mt-1 display-font">{stats.exacts}</p>
+            </div>
+            <div className="glass rounded-2xl p-4 text-center">
+              <span className="text-soccer-textMuted text-[10px] uppercase font-bold tracking-wider">Resultado Solo (3p)</span>
+              <p className="text-3xl font-black text-emerald-400 font-mono mt-1 display-font">{stats.outcomes}</p>
+            </div>
+            <div className="glass rounded-2xl p-4 text-center">
+              <span className="text-soccer-textMuted text-[10px] uppercase font-bold tracking-wider">Fallados (0p)</span>
+              <p className="text-3xl font-black text-slate-500 font-mono mt-1 display-font">{stats.missed}</p>
+            </div>
+            <div className="glass rounded-2xl p-4 text-center col-span-2 md:col-span-1">
+              <span className="text-soccer-textMuted text-[10px] uppercase font-bold tracking-wider">Efectividad</span>
+              <p className="text-3xl font-black text-sky-400 font-mono mt-1 display-font">{accuracy}%</p>
+            </div>
+          </div>
+
+          <div className="glass rounded-2xl p-5 space-y-4">
+            <h3 className="text-sm font-bold display-font text-white">Historial de Predicciones y Puntos Obtenidos</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {userMatchesHistory.map(({ match, pred, points }) => (
+                <div key={match.id} className="bg-soccer-darker/60 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between gap-3">
+                  <div className="flex justify-between items-center text-[10px] text-soccer-textMuted">
+                    <span>{match.stage}</span>
+                    <span>{new Date(match.date).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}</span>
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-1.5 font-bold text-sm text-slate-200">
+                      <span>{TEAM_FLAGS[match.home_team_name] || "🏳️"} {match.home_team_name}</span>
+                      <span className="text-xs text-soccer-textMuted font-medium">vs</span>
+                      <span>{TEAM_FLAGS[match.away_team_name] || "🏳️"} {match.away_team_name}</span>
+                    </div>
+
+                    {(match.status === "Finished" || match.status === "Live") && (
+                      <span className="font-mono bg-slate-900 border border-slate-800 text-soccer-accent px-2 py-0.5 rounded font-black text-xs">
+                        {match.home_score} - {match.away_score}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="border-t border-slate-800/80 pt-2 flex justify-between items-center text-xs">
+                    <div>
+                      <span className="text-soccer-textMuted">Tu Pronóstico: </span>
+                      {pred ? (
+                        <span className="font-bold font-mono text-white bg-slate-900/80 px-2 py-0.5 rounded border border-slate-800">
+                          {pred.homeScore} - {pred.awayScore}
+                        </span>
+                      ) : (
+                        <span className="italic text-slate-650 text-[10px]">No ingresado</span>
+                      )}
+                    </div>
+
+                    <div>
+                      {match.status === "Finished" && (
+                        <span className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase border ${
+                          points === 5 
+                            ? 'bg-amber-950 text-amber-400 border-amber-800' 
+                            : points === 3 
+                              ? 'bg-emerald-950 text-emerald-400 border-emerald-800' 
+                              : 'bg-slate-900 text-slate-500 border-slate-800'
+                        }`}>
+                          +{points} pts
+                        </span>
+                      )}
+                      {match.status === "Live" && (
+                        <span className="bg-red-950 text-red-400 border border-red-950 text-[10px] px-2 py-0.5 rounded-lg font-bold uppercase animate-pulse">
+                          En Vivo
+                        </span>
+                      )}
+                      {match.status === "Scheduled" && (
+                        <span className="bg-emerald-950 text-emerald-400 border border-emerald-900 text-[10px] px-2 py-0.5 rounded-lg font-bold uppercase">
+                          Abierto
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ----------------------------------------------------
+    // SUB-COMPONENTS: RULES TAB
+    // ----------------------------------------------------
+    function RulesTab() {
+      return (
+        <div className="glass rounded-2xl p-6 space-y-6">
+          <h2 className="text-lg font-bold display-font text-white border-b border-soccer-border pb-3">Reglamento y Puntuación</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <h3 className="font-bold text-soccer-primary text-sm uppercase tracking-wide flex items-center gap-1.5">
+                <span className="h-2 w-2 bg-soccer-primary rounded-full"></span>
+                Reglas de Puntuación
+              </h3>
+              <p className="text-xs text-soccer-textMuted leading-relaxed">
+                El sistema evalúa tus predicciones y otorga puntos de manera automática una vez finalizados los encuentros:
+              </p>
+              
+              <ul className="space-y-3.5 mt-2">
+                <li className="flex items-start gap-3 bg-amber-950/20 border border-amber-900/30 p-3 rounded-xl">
+                  <span className="text-2xl">⭐</span>
+                  <div>
+                    <h4 className="font-bold text-amber-400 text-xs">Marcador Exacto (5 Puntos)</h4>
+                    <p className="text-[11px] text-slate-300 mt-0.5">Le atinas al ganador/empate y a la cantidad exacta de goles de ambos equipos. (Ej: Predicción: 2-1 | Resultado: 2-1).</p>
+                  </div>
+                </li>
+                <li className="flex items-start gap-3 bg-emerald-950/20 border border-emerald-900/30 p-3 rounded-xl">
+                  <span className="text-2xl">✓</span>
+                  <div>
+                    <h4 className="font-bold text-emerald-400 text-xs">Resultado Acertado Solo (3 Puntos)</h4>
+                    <p className="text-[11px] text-slate-300 mt-0.5">Le atinas al ganador o al empate, pero fallas en los marcadores de goles específicos. (Ej: Predicción: 1-0 | Resultado: 3-1).</p>
+                  </div>
+                </li>
+                <li className="flex items-start gap-3 bg-slate-900/40 border border-slate-800 p-3 rounded-xl">
+                  <span className="text-2xl">✗</span>
+                  <div>
+                    <h4 className="font-bold text-slate-400 text-xs">Sin Aciertos (0 Puntos)</h4>
+                    <p className="text-[11px] text-slate-500 mt-0.5">Fallas tanto en el ganador/empate como en los goles marcados.</p>
+                  </div>
+                </li>
+              </ul>
+            </div>
+
+            <div className="space-y-6">
+              <div className="space-y-3">
+                <h3 className="font-bold text-soccer-accent text-sm uppercase tracking-wide flex items-center gap-1.5">
+                  <span className="h-2 w-2 bg-soccer-accent rounded-full"></span>
+                  Cierre de Pronósticos (10 Minutos)
+                </h3>
+                <p className="text-xs text-soccer-textMuted leading-relaxed">
+                  Puedes guardar y modificar tus predicciones hasta exactamente **10 minutos antes** de la hora oficial programada para el kick-off de cada partido. El sistema bloquea automáticamente los inputs después de este límite (regulado de manera segura por la base de datos).
+                </p>
+              </div>
+              <div className="space-y-3">
+                <h3 className="font-bold text-white text-sm uppercase tracking-wide flex items-center gap-1.5">
+                  <Icon name="trendingUp" className="w-4 h-4 text-soccer-primary" />
+                  Criterio de Desempate
+                </h3>
+                <p className="text-xs text-soccer-textMuted leading-relaxed">
+                  Si dos o más competidores tienen los mismos puntos totales, la tabla de clasificaciones dinámica resolverá el desempate priorizando al usuario con **mayor número de Marcadores Exactos** (pronósticos de 5 puntos).
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ----------------------------------------------------
+    // COMPONENT: ADMIN CONTROL SIDEBAR
+    // ----------------------------------------------------
+    function AdminPanel({
+      isOpen,
+      onClose,
+      systemTime,
+      matches,
+      onUpdateMatch,
+      onSetTime,
+      onResetTime,
+      triggerSaveToast,
+      setMatches
+    }) {
+      const [customDate, setCustomDate] = useState("");
+      const [customTime, setCustomTime] = useState("");
+      
+      // API Football states
+      const [apiKey, setApiKey] = useState(() => localStorage.getItem("api_football_key") || "");
+      const [syncLoading, setSyncLoading] = useState(false);
+
+      useEffect(() => {
+        const d = new Date(systemTime);
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        const hh = String(d.getHours()).padStart(2, '0');
+        const min = String(d.getMinutes()).padStart(2, '0');
+        
+        setCustomDate(`${yyyy}-${mm}-${dd}`);
+        setCustomTime(`${hh}:${min}`);
+      }, [systemTime]);
+
+      const handleSetCustomTime = (e) => {
+        e.preventDefault();
+        if (customDate && customTime) {
+          onSetTime(`${customDate}T${customTime}:00`);
+        }
+      };
+
+      const handleShiftTime = (mins) => {
+        const current = new Date(systemTime);
+        current.setMinutes(current.getMinutes() + mins);
+        
+        const yyyy = current.getFullYear();
+        const mm = String(current.getMonth() + 1).padStart(2, '0');
+        const dd = String(current.getDate()).padStart(2, '0');
+        const hh = String(current.getHours()).padStart(2, '0');
+        const min = String(current.getMinutes()).padStart(2, '0');
+        
+        onSetTime(`${yyyy}-${mm}-${dd}T${hh}:${min}:00`);
+      };
+
+      // REAL TIME API-FOOTBALL SCORE SYNC
+      const handleSyncScores = async () => {
+        if (!apiKey.trim()) {
+          triggerSaveToast("Ingresa tu API Key de API-football");
+          return;
+        }
+        
+        setSyncLoading(true);
+        localStorage.setItem("api_football_key", apiKey.trim());
+
+        try {
+          // 1. Fetch fixtures from API-football
+          // League ID 1 represents the FIFA World Cup
+          const response = await fetch('https://v3.football.api-sports.io/fixtures?league=1&season=2026', {
+            headers: {
+              'x-apisports-key': apiKey.trim(),
+              'x-rapidapi-host': 'v3.football.api-sports.io'
+            }
+          });
+
+          const resData = await response.json();
+          
+          if (resData.errors && Object.keys(resData.errors).length > 0) {
+            throw new Error(JSON.stringify(resData.errors));
+          }
+          
+          const fixtures = resData.response;
+          if (!fixtures || fixtures.length === 0) {
+            throw new Error("No se encontraron partidos para la temporada 2026.");
+          }
+
+          // 2. Loop through local matches and update from api response
+          let updateCount = 0;
+          for (const dbMatch of matches) {
+            const homeEnglish = TEAM_NAME_MAP[dbMatch.home_team_name];
+            const awayEnglish = TEAM_NAME_MAP[dbMatch.away_team_name];
+
+            const fixture = fixtures.find(f => 
+              (f.teams.home.name === homeEnglish && f.teams.away.name === awayEnglish) ||
+              (f.teams.home.name === homeEnglish && f.fixture.id === dbMatch.api_fixture_id)
+            );
+
+            if (fixture) {
+              let apiStatus = fixture.fixture.status.short;
+              let dbStatus = "Scheduled";
+              
+              if (["FT", "AET", "PEN"].includes(apiStatus)) {
+                dbStatus = "Finished";
+              } else if (["1H", "2H", "HT", "ET", "P", "LIVE"].includes(apiStatus)) {
+                dbStatus = "Live";
+              }
+
+              const apiHomeScore = fixture.goals.home;
+              const apiAwayScore = fixture.goals.away;
+
+              // If scores or status changed, perform update in Supabase
+              if (dbMatch.home_score !== apiHomeScore || dbMatch.away_score !== apiAwayScore || dbMatch.status !== dbStatus || !dbMatch.api_fixture_id) {
+                const { error: updateErr } = await supabase
+                  .from('matches')
+                  .update({
+                    home_score: apiHomeScore,
+                    away_score: apiAwayScore,
+                    status: dbStatus,
+                    api_fixture_id: fixture.fixture.id
+                  })
+                  .eq('id', dbMatch.id);
+
+                if (updateErr) console.error("Error updating match in Supabase:", updateErr);
+                else updateCount++;
+              }
+            }
+          }
+
+          // 3. Reload matches
+          const { data: refreshedMatches } = await supabase.from('matches').select('*').order('date');
+          setMatches(refreshedMatches || []);
+          triggerSaveToast(`Sincronización finalizada. ${updateCount} partidos actualizados.`);
+        } catch (err) {
+          console.error("Sync error:", err);
+          triggerSaveToast(`Error de sync: ${err.message}`);
+        } finally {
+          setSyncLoading(false);
+        }
+      };
+
+      return (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div onClick={onClose} className="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+          
+          <div className="relative w-full max-w-md bg-soccer-dark border-l border-soccer-border h-full flex flex-col overflow-y-auto shadow-2xl p-6 z-10 animate-slide-in">
+            <div className="flex justify-between items-center border-b border-soccer-border pb-4 mb-6">
+              <h2 className="text-md font-bold display-font text-white flex items-center gap-2">
+                <Icon name="settings" className="w-5 h-5 text-soccer-accent animate-spin-slow" />
+                Panel de Administración Real
+              </h2>
+              <button
+                onClick={onClose}
+                className="text-soccer-textMuted hover:text-white text-xs font-semibold px-2 py-1 bg-slate-900 border border-soccer-border rounded-lg"
+              >
+                Cerrar
+              </button>
+            </div>
+
+            {/* SYNC CON API-FOOTBALL */}
+            <div className="space-y-4 border-b border-soccer-border/80 pb-6 mb-6">
+              <h3 className="text-xs uppercase font-extrabold tracking-wider text-soccer-primary display-font flex items-center gap-1.5">
+                <Icon name="sync" className="w-4 h-4 text-soccer-primary" />
+                Sincronización API-football
+              </h3>
+              <p className="text-[11px] text-soccer-textMuted">Conecta tu API-key para actualizar automáticamente los resultados reales desde la API de api-football.com.</p>
+              
+              <div className="space-y-2">
+                <input
+                  type="password"
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  placeholder="x-apisports-key"
+                  className="w-full bg-slate-950 border border-soccer-border px-3 py-2 rounded-xl text-xs text-white focus:outline-none"
+                />
+                <button
+                  onClick={handleSyncScores}
+                  disabled={syncLoading}
+                  className="w-full bg-soccer-primary hover:bg-emerald-400 disabled:opacity-50 text-soccer-darker text-xs font-bold py-2 rounded-xl transition-colors flex justify-center items-center gap-1.5"
+                >
+                  {syncLoading ? (
+                    <>
+                      <Icon name="soccerBall" className="w-4 h-4 animate-spin" />
+                      <span>Sincronizando...</span>
+                    </>
+                  ) : (
+                    <span>Sincronizar Resultados Reales</span>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* TIME TRAVEL (UI SIMULATION) */}
+            <div className="space-y-4 border-b border-soccer-border/80 pb-6 mb-6">
+              <h3 className="text-xs uppercase font-extrabold tracking-wider text-soccer-accent display-font">Máquina del Tiempo (Test UI)</h3>
+              <p className="text-[11px] text-soccer-textMuted">Viaja en el tiempo para simular la vista del calendario y comprobar bloqueos locales.</p>
+
+              <div className="bg-slate-950 border border-soccer-border rounded-xl p-3 text-center">
+                <span className="text-[10px] text-soccer-textMuted font-bold uppercase block mb-1">Hora Activa en tu Navegador</span>
+                <span className="font-mono text-sm font-black text-white">{new Date(systemTime).toLocaleString('es-ES')}</span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                <button onClick={() => handleShiftTime(10)} className="bg-slate-900 hover:bg-slate-800 border border-soccer-border rounded-lg py-1.5 text-[10px] font-bold text-slate-300">+10m</button>
+                <button onClick={() => handleShiftTime(60)} className="bg-slate-900 hover:bg-slate-800 border border-soccer-border rounded-lg py-1.5 text-[10px] font-bold text-slate-300">+1h</button>
+                <button onClick={onResetTime} className="bg-slate-900 hover:bg-soccer-accent hover:text-soccer-darker border border-soccer-border rounded-lg py-1.5 text-[10px] font-bold text-slate-300">Tiempo Real</button>
+              </div>
+
+              <form onSubmit={handleSetCustomTime} className="space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <input
+                      type="date"
+                      value={customDate}
+                      onChange={(e) => setCustomDate(e.target.value)}
+                      className="w-full bg-slate-950 border border-soccer-border p-2 rounded-lg text-xs text-white focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <input
+                      type="time"
+                      value={customTime}
+                      onChange={(e) => setCustomTime(e.target.value)}
+                      className="w-full bg-slate-950 border border-soccer-border p-2 rounded-lg text-xs text-white focus:outline-none"
+                    />
+                  </div>
+                </div>
+                <button type="submit" className="w-full bg-soccer-accent hover:bg-amber-400 text-soccer-darker text-xs font-bold py-2 rounded-xl transition-colors">
+                  Viajar
+                </button>
+              </form>
+            </div>
+
+            {/* MANUAL SCORE OVERRIDES */}
+            <div className="space-y-4 flex-1 flex flex-col overflow-hidden">
+              <h3 className="text-xs uppercase font-extrabold tracking-wider text-white display-font flex-shrink-0">Editor Manual de Partidos</h3>
+              <div className="space-y-3 overflow-y-auto flex-1 pr-1">
+                {matches.map(m => (
+                  <AdminMatchRow
+                    key={m.id}
+                    match={m}
+                    onSave={onUpdateMatch}
+                  />
+                ))}
+              </div>
+            </div>
+
+          </div>
+        </div>
+      );
+    }
+
+    // Single match admin row within control panel
+    function AdminMatchRow({ match, onSave }) {
+      const [hScore, setHScore] = useState(match.home_score !== null ? match.home_score : "");
+      const [aScore, setAScore] = useState(match.away_score !== null ? match.away_score : "");
+      const [status, setStatus] = useState(match.status);
+
+      useEffect(() => {
+        setHScore(match.home_score !== null ? match.home_score : "");
+        setAScore(match.away_score !== null ? match.away_score : "");
+        setStatus(match.status);
+      }, [match]);
+
+      const handleUpdate = () => {
+        onSave(match.id, {
+          homeScore: hScore,
+          awayScore: aScore,
+          status
+        });
+      };
+
+      return (
+        <div className="bg-soccer-darker border border-soccer-border rounded-xl p-3 space-y-2 text-xs">
+          <div className="flex justify-between items-center text-[10px] text-soccer-textMuted uppercase font-bold">
+            <span className="truncate max-w-[150px]">{match.stage}</span>
+            <span>{new Date(match.date).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}</span>
+          </div>
+
+          <div className="flex items-center justify-between gap-1.5">
+            <span className="font-semibold text-slate-300 w-1/3 truncate text-[11px] text-left">
+              {TEAM_FLAGS[match.home_team_name] || "🏳️"} {match.home_team_name}
+            </span>
+            
+            <div className="flex items-center gap-1 w-1/3 justify-center">
+              <input
+                type="number"
+                value={hScore}
+                onChange={(e) => setHScore(e.target.value === "" ? "" : Math.max(0, parseInt(e.target.value)))}
+                placeholder="0"
+                className="w-8 h-8 rounded-lg bg-slate-950 border border-soccer-border text-center text-xs font-bold text-white focus:outline-none"
+              />
+              <span className="text-[10px] font-bold text-soccer-textMuted">-</span>
+              <input
+                type="number"
+                value={aScore}
+                onChange={(e) => setAScore(e.target.value === "" ? "" : Math.max(0, parseInt(e.target.value)))}
+                placeholder="0"
+                className="w-8 h-8 rounded-lg bg-slate-950 border border-soccer-border text-center text-xs font-bold text-white focus:outline-none"
+              />
+            </div>
+
+            <span className="font-semibold text-slate-300 w-1/3 truncate text-[11px] text-right">
+              {match.away_team_name} {TEAM_FLAGS[match.away_team_name] || "🏳️"}
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between gap-2 border-t border-slate-800/85 pt-2">
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className="bg-slate-950 border border-soccer-border rounded-lg text-[10px] py-1 px-1.5 text-slate-200 focus:outline-none"
+            >
+              <option value="Scheduled">Programado</option>
+              <option value="Live">En Vivo</option>
+              <option value="Finished">Finalizado</option>
+            </select>
+            
+            <button
+              onClick={handleUpdate}
+              className="bg-soccer-primary text-soccer-darker hover:bg-emerald-400 font-extrabold text-[10px] py-1 px-2.5 rounded-lg transition-all"
+            >
+              Actualizar
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // Render application
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+
+</body>
+</html>

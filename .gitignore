@@ -1,0 +1,7 @@
+# Temporary and system files
+.gemini/
+scratch/
+seed_matches*.sql
+parse_schedule*.ps1
+.DS_Store
+Thumbs.db
