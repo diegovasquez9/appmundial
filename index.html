@@ -647,6 +647,83 @@
         }
       };
 
+      const handleAdminSimulateGroupStage = async () => {
+        triggerSaveToast("Simulando fase de grupos...");
+        try {
+          const groupMatches = matches.filter(m => m.stage.includes("Grupo"));
+          
+          const updates = groupMatches.map(m => {
+            const hScore = Math.floor(Math.random() * 4); // 0-3 goals
+            const aScore = Math.floor(Math.random() * 4);
+            return {
+              id: m.id,
+              home_score: hScore,
+              away_score: aScore,
+              status: "Finished"
+            };
+          });
+
+          // Concurrently update all 72 group matches in Supabase
+          const promises = updates.map(upd => 
+            supabase
+              .from('matches')
+              .update({
+                home_score: upd.home_score,
+                away_score: upd.away_score,
+                status: "Finished"
+              })
+              .eq('id', upd.id)
+          );
+
+          await Promise.all(promises);
+
+          // Reload matches list from Supabase
+          const { data: refreshedMatches, error: reloadErr } = await supabase
+            .from('matches')
+            .select('*')
+            .order('date');
+
+          if (reloadErr) throw reloadErr;
+          
+          setMatches(refreshedMatches || []);
+          triggerSaveToast("¡Fase de grupos simulada con éxito!");
+        } catch (err) {
+          triggerSaveToast(`Error en la simulación: ${err.message}`);
+        }
+      };
+
+      const handleAdminResetAllScores = async () => {
+        triggerSaveToast("Reiniciando todos los marcadores...");
+        try {
+          const promises = matches.map(m => 
+            supabase
+              .from('matches')
+              .update({
+                home_score: null,
+                away_score: null,
+                status: "Scheduled",
+                api_fixture_id: null
+              })
+              .eq('id', m.id)
+          );
+
+          await Promise.all(promises);
+
+          // Reload matches list from Supabase
+          const { data: refreshedMatches, error: reloadErr } = await supabase
+            .from('matches')
+            .select('*')
+            .order('date');
+
+          if (reloadErr) throw reloadErr;
+
+          setMatches(refreshedMatches || []);
+          triggerSaveToast("¡Todos los marcadores han sido reiniciados!");
+        } catch (err) {
+          triggerSaveToast(`Error al reiniciar marcadores: ${err.message}`);
+        }
+      };
+
       // ----------------------------------------------------
       // SCORING & DYNAMIC STANDINGS
       // ----------------------------------------------------
@@ -694,6 +771,169 @@
         return 0;
       };
 
+      // Dynamic bracket progression resolution for Round of 32, Round of 16, Quarters, Semis, and Finals
+      const resolvedTeamsMap = useMemo(() => {
+        const resolution = {};
+
+        // 1. Group Standings Calculation
+        const groupLetters = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"];
+        const tables = {};
+        groupLetters.forEach(l => { tables[l] = {}; });
+
+        Object.entries(TEAM_GROUPS).forEach(([team, letter]) => {
+          tables[letter][team] = {
+            name: team,
+            played: 0, won: 0, drawn: 0, lost: 0,
+            goalsFor: 0, goalsAgainst: 0, points: 0
+          };
+        });
+
+        matches.forEach(match => {
+          if (match.stage.includes("Grupo") && match.status === "Finished" && match.home_score !== null && match.away_score !== null) {
+            const hTeam = match.home_team_name;
+            const aTeam = match.away_team_name;
+            const groupLetter = TEAM_GROUPS[hTeam];
+            if (groupLetter && tables[groupLetter] && tables[groupLetter][hTeam] && tables[groupLetter][aTeam]) {
+              const hStats = tables[groupLetter][hTeam];
+              const aStats = tables[groupLetter][aTeam];
+              const hGoals = parseInt(match.home_score);
+              const aGoals = parseInt(match.away_score);
+
+              hStats.goalsFor += hGoals;
+              hStats.goalsAgainst += aGoals;
+              aStats.goalsFor += aGoals;
+              aStats.goalsAgainst += hGoals;
+              hStats.played += 1;
+              aStats.played += 1;
+
+              if (hGoals > aGoals) {
+                hStats.won += 1;
+                hStats.points += 3;
+                aStats.lost += 1;
+              } else if (hGoals < aGoals) {
+                aStats.won += 1;
+                aStats.points += 3;
+                hStats.lost += 1;
+              } else {
+                hStats.drawn += 1;
+                hStats.points += 1;
+                aStats.drawn += 1;
+                aStats.points += 1;
+              }
+            }
+          }
+        });
+
+        // Get 1st, 2nd, and 3rd place teams per group
+        const groupThirds = [];
+        groupLetters.forEach(letter => {
+          const teamsArray = Object.values(tables[letter]).map(t => {
+            t.goalDiff = t.goalsFor - t.goalsAgainst;
+            return t;
+          });
+
+          // Sort by points desc, goalDiff desc, goalsFor desc, name asc
+          teamsArray.sort((a, b) => {
+            if (b.points !== a.points) return b.points - a.points;
+            if (b.goalDiff !== a.goalDiff) return b.goalDiff - a.goalDiff;
+            if (b.goalsFor !== a.goalsFor) return b.goalsFor - a.goalsFor;
+            return a.name.localeCompare(b.name);
+          });
+
+          // Assign 1st and 2nd places
+          if (teamsArray[0] && teamsArray[0].played > 0) {
+            resolution[`1${letter}`] = teamsArray[0].name;
+          } else {
+            resolution[`1${letter}`] = `1${letter}`;
+          }
+
+          if (teamsArray[1] && teamsArray[1].played > 0) {
+            resolution[`2${letter}`] = teamsArray[1].name;
+          } else {
+            resolution[`2${letter}`] = `2${letter}`;
+          }
+
+          if (teamsArray[2]) {
+            groupThirds.push({
+              name: teamsArray[2].name,
+              group: letter,
+              played: teamsArray[2].played,
+              points: teamsArray[2].points,
+              goalDiff: teamsArray[2].goalDiff,
+              goalsFor: teamsArray[2].goalsFor
+            });
+          }
+        });
+
+        // Find the 8 best 3rd place teams
+        groupThirds.sort((a, b) => {
+          if (b.points !== a.points) return b.points - a.points;
+          if (b.goalDiff !== a.goalDiff) return b.goalDiff - a.goalDiff;
+          if (b.goalsFor !== a.goalsFor) return b.goalsFor - a.goalsFor;
+          return a.name.localeCompare(b.name);
+        });
+
+        const bestThirds = groupThirds.filter(t => t.played > 0).slice(0, 8);
+
+        // Resolve 3rd place placeholders (e.g. "3rd A/B/C/D/F")
+        const resolveThird = (allowedGroupsString) => {
+          const allowed = allowedGroupsString.replace("3rd ", "").split("/");
+          // Find first available best-third team from allowed groups that hasn't been mapped yet
+          const match = bestThirds.find(t => allowed.includes(t.group) && !Object.values(resolution).includes(t.name));
+          return match ? match.name : `3rd ${allowedGroupsString}`;
+        };
+
+        matches.forEach(m => {
+          if (m.home_team_name.startsWith("3rd ")) {
+            resolution[m.home_team_name] = resolveThird(m.home_team_name);
+          }
+          if (m.away_team_name.startsWith("3rd ")) {
+            resolution[m.away_team_name] = resolveThird(m.away_team_name);
+          }
+        });
+
+        // 2. Resolve Knockout Progression (Winners & Losers)
+        // 5 passes to propagate winners from R32 down to Finals
+        for (let pass = 0; pass < 5; pass++) {
+          matches.forEach(m => {
+            const mIdNumber = m.id.replace("m", "");
+            
+            const hResolvedName = resolution[m.home_team_name] || m.home_team_name;
+            const aResolvedName = resolution[m.away_team_name] || m.away_team_name;
+
+            let winner = `Ganador ${mIdNumber}`;
+            let loser = `Perdedor ${mIdNumber}`;
+
+            if (m.status === "Finished" && m.home_score !== null && m.away_score !== null) {
+              const hScore = parseInt(m.home_score);
+              const aScore = parseInt(m.away_score);
+              if (hScore > aScore) {
+                winner = hResolvedName;
+                loser = aResolvedName;
+              } else if (aScore > hScore) {
+                winner = aResolvedName;
+                loser = hResolvedName;
+              }
+            }
+
+            resolution[`Ganador ${mIdNumber}`] = winner;
+            resolution[`Perdedor ${mIdNumber}`] = loser;
+          });
+        }
+
+        return resolution;
+      }, [matches]);
+
+      const resolvedMatches = useMemo(() => {
+        return matches.map(m => {
+          return {
+            ...m,
+            home_team_name: resolvedTeamsMap[m.home_team_name] || m.home_team_name,
+            away_team_name: resolvedTeamsMap[m.away_team_name] || m.away_team_name
+          };
+        });
+      }, [matches, resolvedTeamsMap]);
+
       // Calculate stats for current active user
       const currentUserStats = useMemo(() => {
         if (!user) return { points: 0, exacts: 0, outcomes: 0, missed: 0, predictedCount: 0 };
@@ -703,7 +943,7 @@
         let missed = 0;
         let predictedCount = 0;
 
-        matches.forEach(m => {
+        resolvedMatches.forEach(m => {
           const pred = predictions[`${user.id}_${m.id}`];
           const hasPrediction = pred && pred.homeScore !== "" && pred.awayScore !== "";
 
@@ -721,13 +961,13 @@
         });
 
         return { points, exacts, outcomes, missed, predictedCount };
-      }, [user, matches, predictions]);
+      }, [user, resolvedMatches, predictions]);
 
       // Horizontal list of matches scheduled for today
       const todayMatches = useMemo(() => {
         const sysDateString = systemTime.split("T")[0];
-        return matches.filter(m => m.date.startsWith(sysDateString));
-      }, [matches, systemTime]);
+        return resolvedMatches.filter(m => m.date.startsWith(sysDateString));
+      }, [resolvedMatches, systemTime]);
 
       if (authLoading) {
         return (
@@ -873,7 +1113,7 @@
             {activeTab === "dashboard" && (
               <DashboardTab
                 todayMatches={todayMatches}
-                matches={matches}
+                matches={resolvedMatches}
                 predictions={predictions}
                 currentUser={user}
                 systemTime={systemTime}
@@ -884,7 +1124,7 @@
             )}
 
             {activeTab === "positions" && (
-              <PositionsTab matches={matches} />
+              <PositionsTab matches={resolvedMatches} />
             )}
 
             {activeTab === "leaderboards" && (
@@ -896,7 +1136,7 @@
                 handleCreateGroup={handleCreateGroup}
                 handleJoinGroup={handleJoinGroup}
                 predictions={predictions}
-                matches={matches}
+                matches={resolvedMatches}
                 calculatePredictionScore={calculatePredictionScore}
               />
             )}
@@ -905,7 +1145,7 @@
               <StatsTab
                 currentUser={user}
                 stats={currentUserStats}
-                matches={matches}
+                matches={resolvedMatches}
                 predictions={predictions}
                 calculatePredictionScore={calculatePredictionScore}
               />
@@ -925,8 +1165,10 @@
 
             {activeTab === "admin-results" && user && user.email === "diegorene9406@gmail.com" && (
               <AdminResultsTab
-                matches={matches}
+                matches={resolvedMatches}
                 onUpdateMatch={handleAdminUpdateMatch}
+                onSimulateGroupStage={handleAdminSimulateGroupStage}
+                onResetAllScores={handleAdminResetAllScores}
               />
             )}
           </main>
@@ -957,7 +1199,7 @@
               isOpen={showAdmin}
               onClose={() => setShowAdmin(false)}
               systemTime={systemTime}
-              matches={matches}
+              matches={resolvedMatches}
               onUpdateMatch={handleAdminUpdateMatch}
               onSetTime={(t) => { setSystemTime(t); setIsTimeSimulated(true); }}
               onResetTime={() => { setSystemTime(new Date().toISOString().substring(0, 16)); setIsTimeSimulated(false); triggerSaveToast("Hora sincronizada con tiempo real"); }}
@@ -1524,6 +1766,29 @@
         return sortedTables;
       }, [matches]);
 
+      const bestThirds = useMemo(() => {
+        const thirds = [];
+        Object.entries(standingsByGroup).forEach(([groupLetter, teamsArray]) => {
+          const t = teamsArray[2]; // The 3rd place team
+          if (t) {
+            thirds.push({
+              ...t,
+              group: groupLetter
+            });
+          }
+        });
+
+        // Sort thirds: points desc, goalDiff desc, goalsFor desc, name asc
+        thirds.sort((a, b) => {
+          if (b.points !== a.points) return b.points - a.points;
+          if (b.goalDiff !== a.goalDiff) return b.goalDiff - a.goalDiff;
+          if (b.goalsFor !== a.goalsFor) return b.goalsFor - a.goalsFor;
+          return a.name.localeCompare(b.name);
+        });
+
+        return thirds;
+      }, [standingsByGroup]);
+
       return (
         <div className="space-y-6">
           <h2 className="text-md uppercase tracking-wider font-extrabold text-white flex items-center gap-2 display-font">
@@ -1577,6 +1842,82 @@
                 </div>
               </div>
             ))}
+          </div>
+
+          {/* TABLA DE MEJORES TERCEROS */}
+          <div className="glass rounded-2xl p-5 space-y-4 border border-soccer-accent/25">
+            <div>
+              <h3 className="text-xs font-black uppercase tracking-wider text-soccer-accent display-font flex items-center gap-1.5">
+                <Icon name="award" className="w-4 h-4 text-soccer-accent" />
+                Tabla de Mejores Terceros
+              </h3>
+              <p className="text-[10px] text-soccer-textMuted mt-0.5">
+                Los mejores 8 terceros puestos avanzan a la Ronda de 32 (Dieciseisavos). Sombreados en verde los clasificados.
+              </p>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-[11px]">
+                <thead>
+                  <tr className="text-soccer-textMuted font-bold border-b border-soccer-border/40">
+                    <th className="py-2 w-8 text-center">#</th>
+                    <th className="py-2 pl-2">Equipo</th>
+                    <th className="py-2 text-center w-12">Grupo</th>
+                    <th className="py-2 text-center w-10">PJ</th>
+                    <th className="py-2 text-center w-10">GF</th>
+                    <th className="py-2 text-center w-10">GD</th>
+                    <th className="py-2 text-center w-12 font-bold text-white">PTS</th>
+                    <th className="py-2 text-center w-24">Estado</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/30">
+                  {bestThirds.map((team, idx) => {
+                    const code = TEAM_COUNTRY_CODES[team.name];
+                    const isQualifying = idx < 8 && team.played > 0;
+                    return (
+                      <tr 
+                        key={team.name} 
+                        className={`hover:bg-slate-800/20 transition-all ${
+                          isQualifying 
+                            ? 'bg-emerald-950/20 text-emerald-300 font-semibold' 
+                            : team.played > 0 
+                              ? 'bg-red-950/10 text-red-300' 
+                              : ''
+                        }`}
+                      >
+                        <td className="py-2 text-center font-mono font-bold">
+                          {idx + 1}
+                        </td>
+                        <td className="py-2 pl-2 font-semibold flex items-center gap-1.5 truncate max-w-[150px]">
+                          {code ? (
+                            <img src={`https://flagcdn.com/16x12/${code}.png`} alt={team.name} className="w-4 h-3 object-cover rounded-sm shadow-sm select-none" />
+                          ) : (
+                            <span className="text-base select-none">🏳️</span>
+                          )}
+                          <span className="truncate">{team.name}</span>
+                        </td>
+                        <td className="py-2 text-center font-bold font-mono">{team.group}</td>
+                        <td className="py-2 text-center font-mono">{team.played}</td>
+                        <td className="py-2 text-center font-mono">{team.goalsFor}</td>
+                        <td className="py-2 text-center font-mono">
+                          {team.goalDiff > 0 ? `+${team.goalDiff}` : team.goalDiff}
+                        </td>
+                        <td className="py-2 text-center font-mono font-black">{team.points}</td>
+                        <td className="py-2 text-center text-[9px] uppercase font-extrabold font-sans">
+                          {isQualifying ? (
+                            <span className="bg-emerald-900/50 text-emerald-400 border border-emerald-800/60 px-1.5 py-0.5 rounded">Clasificado</span>
+                          ) : team.played > 0 ? (
+                            <span className="bg-red-900/40 text-red-400 border border-red-950 px-1.5 py-0.5 rounded">Eliminado</span>
+                          ) : (
+                            <span className="text-soccer-textMuted">-</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       );
@@ -2387,7 +2728,7 @@
     // ----------------------------------------------------
     // SUB-COMPONENTS: ADMIN RESULTS TAB
     // ----------------------------------------------------
-    function AdminResultsTab({ matches, onUpdateMatch }) {
+    function AdminResultsTab({ matches, onUpdateMatch, onSimulateGroupStage, onResetAllScores }) {
       const [filterStage, setFilterStage] = useState("pending"); // Default to 'pending' to make updates easier!
       const [searchQuery, setSearchQuery] = useState("");
 
@@ -2418,7 +2759,7 @@
 
       return (
         <div className="glass rounded-2xl p-6 space-y-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-soccer-border pb-4">
+          <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 border-b border-soccer-border pb-4">
             <div>
               <h2 className="text-lg font-bold display-font text-white flex items-center gap-2">
                 <Icon name="settings" className="w-5 h-5 text-soccer-accent animate-spin-slow" />
@@ -2429,16 +2770,36 @@
               </p>
             </div>
             
-            {/* SEARCH BOX */}
-            <div className="relative w-full md:w-64">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Buscar por país o fase..."
-                className="w-full bg-slate-950 border border-soccer-border px-3 py-2 pl-9 rounded-xl text-xs text-white focus:outline-none focus:border-soccer-primary transition-colors"
-              />
-              <Icon name="search" className="w-4 h-4 text-soccer-textMuted absolute left-3 top-2.5" />
+            <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
+              {/* ACCIONES DE SIMULACIÓN */}
+              <div className="flex gap-2 w-full sm:w-auto">
+                <button
+                  onClick={onSimulateGroupStage}
+                  className="flex-1 sm:flex-initial bg-soccer-primary hover:bg-emerald-400 text-soccer-darker text-[10px] font-black py-2 px-3.5 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md shadow-soccer-primary/10"
+                >
+                  <Icon name="soccerBall" className="w-3.5 h-3.5 animate-pulse" />
+                  Simular Fase de Grupos
+                </button>
+                <button
+                  onClick={onResetAllScores}
+                  className="flex-1 sm:flex-initial bg-slate-900 border border-red-500/30 hover:bg-red-950/30 hover:border-red-500 text-red-400 text-[10px] font-black py-2 px-3.5 rounded-xl transition-all flex items-center justify-center gap-1.5"
+                >
+                  <Icon name="reset" className="w-3.5 h-3.5" />
+                  Reiniciar Marcadores
+                </button>
+              </div>
+
+              {/* SEARCH BOX */}
+              <div className="relative w-full sm:w-48">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Buscar país..."
+                  className="w-full bg-slate-950 border border-soccer-border px-3 py-2 pl-9 rounded-xl text-xs text-white focus:outline-none focus:border-soccer-primary transition-colors"
+                />
+                <Icon name="search" className="w-4 h-4 text-soccer-textMuted absolute left-3 top-2.5" />
+              </div>
             </div>
           </div>
 
