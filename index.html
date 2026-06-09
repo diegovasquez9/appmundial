@@ -290,7 +290,21 @@
       const [authLoading, setAuthLoading] = useState(true);
 
       // Data States
-      const [matches, setMatches] = useState([]);
+      const [matches, _setMatches] = useState([]);
+      
+      const sanitizeMatchesList = (matchesList) => {
+        return (matchesList || []).map(m => {
+          if (m.home_score !== null && m.away_score !== null && m.status === "Scheduled") {
+            supabase.from('matches').update({ status: 'Finished' }).eq('id', m.id).then(() => {});
+            return { ...m, status: "Finished" };
+          }
+          return m;
+        });
+      };
+
+      const setMatches = (list) => {
+        _setMatches(sanitizeMatchesList(list));
+      };
       const [predictions, setPredictions] = useState({});
       const [groups, setGroups] = useState([]);
       const [systemTime, setSystemTime] = useState(new Date().toISOString().substring(0, 16));
@@ -1309,11 +1323,11 @@
                 <span className="text-[8px] uppercase font-bold text-soccer-accent tracking-wider mb-1">Resultado Real</span>
                 <div className="flex items-center gap-1.5 justify-center">
                   <div className="w-9 h-8 rounded-lg bg-slate-950 border border-soccer-border/80 flex items-center justify-center text-xs font-mono font-black text-soccer-accent">
-                    {match.status === "Finished" || match.status === "Live" ? match.home_score : "-"}
+                    {match.home_score !== null && match.home_score !== undefined ? match.home_score : "-"}
                   </div>
                   <span className="text-[10px] text-soccer-textMuted font-bold font-mono px-0.5">vs</span>
                   <div className="w-9 h-8 rounded-lg bg-slate-950 border border-soccer-border/80 flex items-center justify-center text-xs font-mono font-black text-soccer-accent">
-                    {match.status === "Finished" || match.status === "Live" ? match.away_score : "-"}
+                    {match.away_score !== null && match.away_score !== undefined ? match.away_score : "-"}
                   </div>
                 </div>
               </div>
@@ -2513,6 +2527,10 @@
               </h3>
               <p className="text-[11px] text-soccer-textMuted">Conecta tu API-key para actualizar automáticamente los resultados reales desde la API de api-football.com.</p>
               
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-2.5 text-[10px] text-amber-300 leading-normal">
+                <strong>⚠️ Limitación del Plan Gratis:</strong> Los planes gratuitos de API-football no permiten consultar la temporada 2026 (solo 2022-2024). Si tienes un plan gratuito, debes usar el <strong>Editor Manual de Partidos</strong> que está justo abajo para actualizar los marcadores reales.
+              </div>
+
               <div className="space-y-2">
                 <input
                   type="password"
@@ -2611,10 +2629,16 @@
       }, [match]);
 
       const handleUpdate = () => {
+        // Auto-finalize if scores are provided and status is Scheduled
+        let finalStatus = status;
+        if (hScore !== "" && hScore !== null && aScore !== "" && aScore !== null && status === "Scheduled") {
+          finalStatus = "Finished";
+        }
+
         onSave(match.id, {
           homeScore: hScore,
           awayScore: aScore,
-          status
+          status: finalStatus
         });
       };
 
@@ -2639,7 +2663,13 @@
               <input
                 type="number"
                 value={hScore}
-                onChange={(e) => setHScore(e.target.value === "" ? "" : Math.max(0, parseInt(e.target.value)))}
+                onChange={(e) => {
+                  const val = e.target.value === "" ? "" : Math.max(0, parseInt(e.target.value));
+                  setHScore(val);
+                  if (val !== "" && aScore !== "" && status === "Scheduled") {
+                    setStatus("Finished");
+                  }
+                }}
                 placeholder="0"
                 className="w-8 h-8 rounded-lg bg-slate-950 border border-soccer-border text-center text-xs font-bold text-white focus:outline-none"
               />
@@ -2647,7 +2677,13 @@
               <input
                 type="number"
                 value={aScore}
-                onChange={(e) => setAScore(e.target.value === "" ? "" : Math.max(0, parseInt(e.target.value)))}
+                onChange={(e) => {
+                  const val = e.target.value === "" ? "" : Math.max(0, parseInt(e.target.value));
+                  setAScore(val);
+                  if (hScore !== "" && val !== "" && status === "Scheduled") {
+                    setStatus("Finished");
+                  }
+                }}
                 placeholder="0"
                 className="w-8 h-8 rounded-lg bg-slate-950 border border-soccer-border text-center text-xs font-bold text-white focus:outline-none"
               />
