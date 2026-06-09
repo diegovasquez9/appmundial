@@ -313,6 +313,7 @@
       };
       const [predictions, setPredictions] = useState({});
       const [groups, setGroups] = useState([]);
+      const [groupOverrides, setGroupOverrides] = useState([]);
       const [systemTime, setSystemTime] = useState(new Date().toISOString().substring(0, 16));
       const [isTimeSimulated, setIsTimeSimulated] = useState(false);
       
@@ -371,6 +372,95 @@
           clearInterval(timer);
         };
       }, [isTimeSimulated]);
+
+      // 2. SUPABASE REALTIME SUBSCRIPTION FOR MATCHES, PREDICTIONS, PROFILE & OVERRIDES
+      useEffect(() => {
+        if (!user) return;
+
+        // Subscribing to matches changes
+        const matchesChannel = supabase
+          .channel('realtime-matches')
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'matches' },
+            (payload) => {
+              if (payload.eventType === 'INSERT') {
+                _setMatches(prev => sanitizeMatchesList([...prev, payload.new]));
+              } else if (payload.eventType === 'UPDATE') {
+                _setMatches(prev => sanitizeMatchesList(prev.map(m => m.id === payload.new.id ? payload.new : m)));
+              } else if (payload.eventType === 'DELETE') {
+                _setMatches(prev => prev.filter(m => m.id !== payload.old.id));
+              }
+            }
+          )
+          .subscribe();
+
+        // Subscribing to current user's predictions changes
+        const predictionsChannel = supabase
+          .channel(`user-predictions-${user.id}`)
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'predictions', filter: `user_id=eq.${user.id}` },
+            (payload) => {
+              if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+                const p = payload.new;
+                setPredictions(prev => ({
+                  ...prev,
+                  [`${user.id}_${p.match_id}`]: {
+                    homeScore: p.home_score,
+                    awayScore: p.away_score
+                  }
+                }));
+              } else if (payload.eventType === 'DELETE') {
+                const p = payload.old;
+                setPredictions(prev => {
+                  const clone = { ...prev };
+                  delete clone[`${user.id}_${p.match_id}`];
+                  return clone;
+                });
+              }
+            }
+          )
+          .subscribe();
+
+        // Subscribing to current user's profile changes
+        const profileChannel = supabase
+          .channel(`user-profile-${user.id}`)
+          .on(
+            'postgres_changes',
+            { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` },
+            (payload) => {
+              setProfile(payload.new);
+            }
+          )
+          .subscribe();
+
+        // Subscribing to group overrides changes
+        const overridesChannel = supabase
+          .channel('realtime-group-overrides')
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'group_overrides' },
+            (payload) => {
+              if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+                setGroupOverrides(prev => {
+                  const clean = prev.filter(o => !(o.group_letter === payload.new.group_letter && o.team_name === payload.new.team_name));
+                  return [...clean, payload.new];
+                });
+              } else if (payload.eventType === 'DELETE') {
+                setGroupOverrides(prev => prev.filter(o => !(o.group_letter === payload.old.group_letter && o.team_name === payload.old.team_name)));
+              }
+            }
+          )
+          .subscribe();
+
+        return () => {
+          supabase.removeChannel(matchesChannel);
+          supabase.removeChannel(predictionsChannel);
+          supabase.removeChannel(profileChannel);
+          supabase.removeChannel(overridesChannel);
+        };
+      }, [user]);
 
       // Fetch all database records related to the user
       const fetchUserData = async (userId) => {
@@ -437,6 +527,14 @@
           } else {
             setGroups([]);
           }
+
+          // e. Group Overrides
+          const { data: overridesData, error: overridesErr } = await supabase
+            .from('group_overrides')
+            .select('*');
+
+          if (overridesErr) throw overridesErr;
+          setGroupOverrides(overridesData || []);
 
         } catch (err) {
           console.error("Error loading user data from Supabase:", err);
@@ -724,6 +822,47 @@
         }
       };
 
+      const handleAdminUpdateGroupOverrides = async (groupLetter, teamOrder) => {
+        try {
+          if (teamOrder === null) {
+            triggerSaveToast(`Restaurando posiciones del Grupo ${groupLetter}...`);
+            const { error } = await supabase
+              .from('group_overrides')
+              .delete()
+              .eq('group_letter', groupLetter);
+            
+            if (error) throw error;
+            
+            setGroupOverrides(prev => prev.filter(o => o.group_letter !== groupLetter));
+            triggerSaveToast(`Grupo ${groupLetter} restaurado a cálculo automático`);
+            return;
+          }
+
+          triggerSaveToast(`Guardando posiciones del Grupo ${groupLetter}...`);
+
+          const upserts = teamOrder.map((teamName, index) => ({
+            group_letter: groupLetter,
+            team_name: teamName,
+            manual_rank: index + 1
+          }));
+
+          const { error } = await supabase
+            .from('group_overrides')
+            .upsert(upserts, { onConflict: 'group_letter,team_name' });
+
+          if (error) throw error;
+
+          // Local state update
+          setGroupOverrides(prev => {
+            const clean = prev.filter(o => o.group_letter !== groupLetter);
+            return [...clean, ...upserts];
+          });
+          triggerSaveToast(`Posiciones del Grupo ${groupLetter} actualizadas con éxito`);
+        } catch (err) {
+          triggerSaveToast(`Error al guardar posiciones: ${err.message}`);
+        }
+      };
+
       // ----------------------------------------------------
       // SCORING & DYNAMIC STANDINGS
       // ----------------------------------------------------
@@ -774,6 +913,12 @@
       // Dynamic bracket progression resolution for Round of 32, Round of 16, Quarters, Semis, and Finals
       const resolvedTeamsMap = useMemo(() => {
         const resolution = {};
+
+        // Create overrides map for quick lookup
+        const overridesMap = {};
+        groupOverrides?.forEach(o => {
+          overridesMap[`${o.group_letter}_${o.team_name}`] = o.manual_rank;
+        });
 
         // 1. Group Standings Calculation
         const groupLetters = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"];
@@ -832,8 +977,13 @@
             return t;
           });
 
-          // Sort by points desc, goalDiff desc, goalsFor desc, name asc
+          // Sort by overrides if present, otherwise by points desc, goalDiff desc, goalsFor desc, name asc
           teamsArray.sort((a, b) => {
+            const rankA = overridesMap[`${letter}_${a.name}`];
+            const rankB = overridesMap[`${letter}_${b.name}`];
+            if (rankA !== undefined && rankB !== undefined) {
+              return rankA - rankB; // manual_rank 1 is first, 2 is second, etc.
+            }
             if (b.points !== a.points) return b.points - a.points;
             if (b.goalDiff !== a.goalDiff) return b.goalDiff - a.goalDiff;
             if (b.goalsFor !== a.goalsFor) return b.goalsFor - a.goalsFor;
@@ -875,20 +1025,63 @@
 
         const bestThirds = groupThirds.filter(t => t.played > 0).slice(0, 8);
 
-        // Resolve 3rd place placeholders (e.g. "3rd A/B/C/D/F")
-        const resolveThird = (allowedGroupsString) => {
-          const allowed = allowedGroupsString.replace("3rd ", "").split("/");
-          // Find first available best-third team from allowed groups that hasn't been mapped yet
-          const match = bestThirds.find(t => allowed.includes(t.group) && !Object.values(resolution).includes(t.name));
-          return match ? match.name : `3rd ${allowedGroupsString}`;
+        // Collect all third place placeholders (slots)
+        const thirdSlots = [];
+        matches.forEach(m => {
+          if (m.home_team_name.startsWith("3rd ") && !thirdSlots.includes(m.home_team_name)) {
+            thirdSlots.push(m.home_team_name);
+          }
+          if (m.away_team_name.startsWith("3rd ") && !thirdSlots.includes(m.away_team_name)) {
+            thirdSlots.push(m.away_team_name);
+          }
+        });
+
+        // Resolve third places using maximum bipartite matching to avoid deadlocks
+        const allowedMap = {};
+        thirdSlots.forEach(slot => {
+          allowedMap[slot] = slot.replace("3rd ", "").split("/");
+        });
+
+        // matching: map from slot string to team object
+        const matching = {};
+        const visited = new Set();
+
+        const dfs = (team) => {
+          for (const slot of thirdSlots) {
+            const allowed = allowedMap[slot];
+            if (allowed.includes(team.group)) {
+              if (visited.has(slot)) continue;
+              visited.add(slot);
+
+              const currentMatchedTeam = matching[slot];
+              if (!currentMatchedTeam || dfs(currentMatchedTeam)) {
+                matching[slot] = team;
+                return true;
+              }
+            }
+          }
+          return false;
         };
 
-        matches.forEach(m => {
-          if (m.home_team_name.startsWith("3rd ")) {
-            resolution[m.home_team_name] = resolveThird(m.home_team_name);
-          }
-          if (m.away_team_name.startsWith("3rd ")) {
-            resolution[m.away_team_name] = resolveThird(m.away_team_name);
+        // Try to match each best-third team to an allowed slot
+        bestThirds.forEach(team => {
+          visited.clear();
+          dfs(team);
+        });
+
+        // Find unused teams (not in matching values)
+        const matchedTeamNames = new Set(Object.values(matching).map(t => t.name));
+        const unusedTeams = bestThirds.filter(t => !matchedTeamNames.has(t.name));
+
+        // Assign to resolution map
+        thirdSlots.forEach(slot => {
+          if (matching[slot]) {
+            resolution[slot] = matching[slot].name;
+          } else if (unusedTeams.length > 0) {
+            const fallbackTeam = unusedTeams.shift();
+            resolution[slot] = fallbackTeam.name;
+          } else {
+            resolution[slot] = slot; // Fixes doubling prefix bug (e.g. returns "3rd E/F/G/I/J" instead of "3rd 3rd E/F/G/I/J")
           }
         });
 
@@ -922,7 +1115,7 @@
         }
 
         return resolution;
-      }, [matches]);
+      }, [matches, groupOverrides]);
 
       const resolvedMatches = useMemo(() => {
         return matches.map(m => {
@@ -1124,7 +1317,7 @@
             )}
 
             {activeTab === "positions" && (
-              <PositionsTab matches={resolvedMatches} />
+              <PositionsTab matches={resolvedMatches} groupOverrides={groupOverrides} />
             )}
 
             {activeTab === "leaderboards" && (
@@ -1169,6 +1362,8 @@
                 onUpdateMatch={handleAdminUpdateMatch}
                 onSimulateGroupStage={handleAdminSimulateGroupStage}
                 onResetAllScores={handleAdminResetAllScores}
+                groupOverrides={groupOverrides}
+                onUpdateGroupOverrides={handleAdminUpdateGroupOverrides}
               />
             )}
           </main>
@@ -1270,7 +1465,7 @@
               <Icon name="soccerBall" className="w-10 h-10 text-white animate-spin-slow" />
             </div>
             <h1 className="text-3xl font-black display-font tracking-tight text-white">POLLA MUNDIAL 2026</h1>
-            <p className="text-xs text-soccer-textMuted uppercase font-bold tracking-wider mt-1">Copa del Mundo Quiniela de Pronósticos</p>
+            <p className="text-xs text-soccer-textMuted uppercase font-bold tracking-wider mt-1">Pronósticos Copa Mundo 2026</p>
           </div>
 
           {/* Form Card */}
@@ -1662,7 +1857,7 @@
                     ? 'bg-amber-950/40 text-amber-300 border-amber-700/50' 
                     : points === 3 
                       ? 'bg-emerald-950/40 text-emerald-300 border-emerald-700/50' 
-                      : 'bg-slate-900/60 text-slate-400 border-slate-800'
+                      : 'bg-red-950/40 text-red-400 border-red-900/50'
                 }`}>
                   <span className="font-medium">
                     Tu Pred: <span className="font-bold font-mono">{prediction.homeScore} - {prediction.awayScore}</span>
@@ -1674,7 +1869,7 @@
                   </span>
                 </div>
               ) : (
-                <div className="p-2 rounded-xl text-center border bg-slate-900/60 text-slate-650 border-slate-800 text-xs">
+                <div className="p-2 rounded-xl text-center border bg-red-950/40 text-red-400 border-red-900/50 text-xs">
                   Sin pronóstico (0 pts)
                 </div>
               )}
@@ -1687,7 +1882,7 @@
     // ----------------------------------------------------
     // COMPONENT: GROUP STANDINGS (POSICIONES DE GRUPOS)
     // ----------------------------------------------------
-    function PositionsTab({ matches }) {
+    function PositionsTab({ matches, groupOverrides }) {
       const groupLetters = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"];
 
       const standingsByGroup = useMemo(() => {
@@ -1747,6 +1942,12 @@
           }
         });
 
+        // Create overrides map
+        const overridesMap = {};
+        groupOverrides?.forEach(o => {
+          overridesMap[`${o.group_letter}_${o.team_name}`] = o.manual_rank;
+        });
+
         // Sort each group table
         const sortedTables = {};
         groupLetters.forEach(letter => {
@@ -1756,6 +1957,11 @@
           });
           
           sortedTables[letter] = teamsArray.sort((a, b) => {
+            const rankA = overridesMap[`${letter}_${a.name}`];
+            const rankB = overridesMap[`${letter}_${b.name}`];
+            if (rankA !== undefined && rankB !== undefined) {
+              return rankA - rankB; // manual_rank 1 is first, 2 is second, etc.
+            }
             if (b.points !== a.points) return b.points - a.points;
             if (b.goalDiff !== a.goalDiff) return b.goalDiff - a.goalDiff;
             if (b.goalsFor !== a.goalsFor) return b.goalsFor - a.goalsFor;
@@ -1764,7 +1970,7 @@
         });
 
         return sortedTables;
-      }, [matches]);
+      }, [matches, groupOverrides]);
 
       const bestThirds = useMemo(() => {
         const thirds = [];
@@ -2043,6 +2249,41 @@
         }
       }, [selectedGroup, matches]);
 
+      // Realtime subscription for group members updates, predictions updates, and profile updates
+      useEffect(() => {
+        if (!selectedGroup) return;
+
+        const groupRealtimeChannel = supabase
+          .channel(`group-updates-${selectedGroup}`)
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'predictions' },
+            () => {
+              fetchGroupLeaderboard(selectedGroup);
+            }
+          )
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'group_members' },
+            () => {
+              fetchGroupLeaderboard(selectedGroup);
+            }
+          )
+          .on(
+            'postgres_changes',
+            { event: 'UPDATE', schema: 'public', table: 'profiles' },
+            () => {
+              fetchGroupLeaderboard(selectedGroup);
+            }
+          )
+          .subscribe();
+
+        return () => {
+          supabase.removeChannel(groupRealtimeChannel);
+        };
+      }, [selectedGroup]);
+
+
       const onSubmitCreate = (e) => {
         e.preventDefault();
         handleCreateGroup(newGroupName);
@@ -2290,7 +2531,7 @@
                                   ? 'bg-amber-950 text-amber-400 border border-amber-800' 
                                   : pts === 3 
                                     ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' 
-                                    : 'bg-slate-800 text-slate-500'
+                                    : 'bg-red-950 text-red-400 border border-red-900/50'
                               }`}>
                                 +{pts} pts
                               </span>
@@ -2403,7 +2644,7 @@
                             ? 'bg-amber-950 text-amber-400 border-amber-800' 
                             : points === 3 
                               ? 'bg-emerald-950 text-emerald-400 border-emerald-800' 
-                              : 'bg-slate-900 text-slate-500 border-slate-800'
+                              : 'bg-red-950 text-red-400 border-red-900/50'
                         }`}>
                           +{points} pts
                         </span>
@@ -2728,7 +2969,14 @@
     // ----------------------------------------------------
     // SUB-COMPONENTS: ADMIN RESULTS TAB
     // ----------------------------------------------------
-    function AdminResultsTab({ matches, onUpdateMatch, onSimulateGroupStage, onResetAllScores }) {
+    function AdminResultsTab({ 
+      matches, 
+      onUpdateMatch, 
+      onSimulateGroupStage, 
+      onResetAllScores,
+      groupOverrides,
+      onUpdateGroupOverrides
+    }) {
       const [filterStage, setFilterStage] = useState("pending"); // Default to 'pending' to make updates easier!
       const [searchQuery, setSearchQuery] = useState("");
 
@@ -2847,6 +3095,26 @@
               ))}
             </div>
           )}
+
+          {/* SECTION: AJUSTAR POSICIONES DE GRUPOS */}
+          <div className="border border-soccer-border/80 rounded-2xl p-5 bg-slate-950/40 space-y-4 mt-6">
+            <div>
+              <h3 className="text-sm font-bold text-white flex items-center gap-2 display-font">
+                <Icon name="list" className="w-5 h-5 text-soccer-accent" />
+                Ajuste Manual de Posiciones de Grupos (Desempates)
+              </h3>
+              <p className="text-[11px] text-soccer-textMuted mt-1">
+                Utiliza esto para forzar las posiciones finales de un grupo cuando empaten por criterios que no calcula el sistema (como Fair Play o Sorteo). Esto alterará de inmediato la clasificación a la Ronda de 32 y las siguientes fases.
+              </p>
+            </div>
+
+            <GroupRankEditor 
+              matches={matches} 
+              groupOverrides={groupOverrides} 
+              onSaveOverrides={onUpdateGroupOverrides} 
+            />
+          </div>
+
         </div>
       );
     }
@@ -2977,6 +3245,197 @@
                 </>
               )}
             </button>
+          </div>
+        </div>
+      );
+    }
+
+    // ----------------------------------------------------
+    // COMPONENT: ADMIN GROUP POSITION OVERRIDES EDITOR
+    // ----------------------------------------------------
+    function GroupRankEditor({ matches, groupOverrides, onSaveOverrides }) {
+      const [selectedLetter, setSelectedLetter] = useState("A");
+      const groupLetters = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"];
+
+      // Find the teams in the selected group dynamically from TEAM_GROUPS
+      const groupTeams = useMemo(() => {
+        return Object.entries(TEAM_GROUPS)
+          .filter(([team, letter]) => letter === selectedLetter)
+          .map(([team]) => team);
+      }, [selectedLetter]);
+
+      // Calculate stats for these teams using matches, just to show their current points
+      const teamStats = useMemo(() => {
+        const stats = {};
+        groupTeams.forEach(t => {
+          stats[t] = { points: 0, goalDiff: 0, goalsFor: 0 };
+        });
+
+        matches.forEach(m => {
+          if (m.stage.includes(`Grupo ${selectedLetter}`) && m.status === "Finished" && m.home_score !== null && m.away_score !== null) {
+            const hGoals = parseInt(m.home_score);
+            const aGoals = parseInt(m.away_score);
+            const hTeam = m.home_team_name;
+            const aTeam = m.away_team_name;
+
+            if (stats[hTeam] && stats[aTeam]) {
+              stats[hTeam].goalsFor += hGoals;
+              stats[hTeam].goalDiff += (hGoals - aGoals);
+              stats[aTeam].goalsFor += aGoals;
+              stats[aTeam].goalDiff += (aGoals - hGoals);
+
+              if (hGoals > aGoals) {
+                stats[hTeam].points += 3;
+              } else if (hGoals < aGoals) {
+                stats[aTeam].points += 3;
+              } else {
+                stats[hTeam].points += 1;
+                stats[aTeam].points += 1;
+              }
+            }
+          }
+        });
+
+        return stats;
+      }, [groupTeams, matches, selectedLetter]);
+
+      // State to track the local order of teams in the selector
+      const [localOrder, setLocalOrder] = useState([]);
+
+      // Initialize local order when selected letter or groupOverrides changes
+      useEffect(() => {
+        // De-duplicate overrides by team_name to be bulletproof
+        const uniqueOverridesMap = {};
+        groupOverrides
+          .filter(o => o.group_letter === selectedLetter)
+          .forEach(o => {
+            uniqueOverridesMap[o.team_name] = o;
+          });
+        
+        const overrides = Object.values(uniqueOverridesMap);
+
+        if (overrides.length === 4) {
+          const sorted = [...overrides].sort((a, b) => a.manual_rank - b.manual_rank);
+          setLocalOrder(sorted.map(s => s.team_name));
+        } else {
+          const defaultSorted = [...groupTeams].sort((a, b) => {
+            const statA = teamStats[a] || { points: 0, goalDiff: 0, goalsFor: 0 };
+            const statB = teamStats[b] || { points: 0, goalDiff: 0, goalsFor: 0 };
+            if (statB.points !== statA.points) return statB.points - statA.points;
+            if (statB.goalDiff !== statA.goalDiff) return statB.goalDiff - statA.goalDiff;
+            if (statB.goalsFor !== statA.goalsFor) return statB.goalsFor - statA.goalsFor;
+            return a.localeCompare(b);
+          });
+          setLocalOrder(defaultSorted);
+        }
+      }, [selectedLetter, groupOverrides, groupTeams, teamStats]);
+
+      const moveTeam = (index, direction) => {
+        const nextOrder = [...localOrder];
+        const targetIndex = index + direction;
+        if (targetIndex >= 0 && targetIndex < localOrder.length) {
+          const temp = nextOrder[index];
+          nextOrder[index] = nextOrder[targetIndex];
+          nextOrder[targetIndex] = temp;
+          setLocalOrder(nextOrder);
+        }
+      };
+
+      const hasOverride = groupOverrides.some(o => o.group_letter === selectedLetter);
+
+      return (
+        <div className="flex flex-col sm:flex-row gap-6 items-start bg-slate-900/60 p-4 rounded-xl border border-soccer-border/60">
+          <div className="w-full sm:w-1/4 space-y-3">
+            <label className="text-[10px] uppercase font-bold text-soccer-textMuted block">Seleccionar Grupo</label>
+            <select
+              value={selectedLetter}
+              onChange={(e) => setSelectedLetter(e.target.value)}
+              className="w-full bg-slate-950 border border-soccer-border px-3 py-2 rounded-xl text-xs text-white focus:outline-none focus:border-soccer-accent"
+            >
+              {groupLetters.map(l => (
+                <option key={l} value={l}>Grupo {l}</option>
+              ))}
+            </select>
+            
+            <div className="pt-1">
+              <span className={`text-[10px] font-black uppercase rounded px-2.5 py-1 border ${
+                hasOverride 
+                  ? 'bg-amber-950/40 text-soccer-accent border-amber-800/60' 
+                  : 'bg-emerald-950/40 text-soccer-primary border-emerald-800/60'
+              }`}>
+                Estado: {hasOverride ? "Manual/Ajustado" : "Cálculo Auto"}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex-1 w-full space-y-3">
+            <div className="text-[10px] uppercase font-bold text-soccer-textMuted">Orden de Clasificación (Arriba 1°, Abajo 4°)</div>
+            <div className="space-y-2">
+              {localOrder.map((team, idx) => {
+                const stats = teamStats[team] || { points: 0, goalDiff: 0, goalsFor: 0 };
+                const code = TEAM_COUNTRY_CODES[team];
+                return (
+                  <div key={team} className="flex items-center justify-between bg-slate-950 border border-soccer-border/80 px-4 py-2.5 rounded-xl text-xs">
+                    <div className="flex items-center gap-2.5">
+                      <span className="w-5 h-5 rounded-full bg-slate-900 border border-soccer-border flex items-center justify-center font-mono font-bold text-[10px] text-soccer-textMuted">
+                        {idx + 1}
+                      </span>
+                      {code ? (
+                        <img src={`https://flagcdn.com/16x12/${code}.png`} alt={team} className="w-4 h-3 object-cover rounded-sm shadow-sm select-none" />
+                      ) : (
+                        <span className="text-sm select-none">🏳️</span>
+                      )}
+                      <span className="font-bold text-slate-200">{team}</span>
+                      <span className="text-[10px] text-soccer-textMuted font-mono">
+                        ({stats.points} pts, {stats.goalDiff > 0 ? `+${stats.goalDiff}` : stats.goalDiff} DG, {stats.goalsFor} GF)
+                      </span>
+                    </div>
+                    
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => moveTeam(idx, -1)}
+                        disabled={idx === 0}
+                        className="bg-slate-900 hover:bg-slate-800 border border-soccer-border p-1.5 rounded-lg text-slate-350 disabled:opacity-40 disabled:hover:bg-slate-900 transition-colors"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 15l7-7 7 7" />
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveTeam(idx, 1)}
+                        disabled={idx === localOrder.length - 1}
+                        className="bg-slate-900 hover:bg-slate-800 border border-soccer-border p-1.5 rounded-lg text-slate-350 disabled:opacity-40 disabled:hover:bg-slate-900 transition-colors"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex gap-2 pt-2 justify-end">
+              {hasOverride && (
+                <button
+                  type="button"
+                  onClick={() => onSaveOverrides(selectedLetter, null)}
+                  className="bg-slate-950 border border-red-500/30 hover:bg-red-950/20 hover:border-red-500 text-red-400 text-xs font-bold py-2.5 px-4 rounded-xl transition-all"
+                >
+                  Restaurar Cálculo Auto
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => onSaveOverrides(selectedLetter, localOrder)}
+                className="bg-soccer-accent hover:bg-amber-400 text-soccer-darker text-xs font-black py-2.5 px-4 rounded-xl transition-all shadow-md shadow-soccer-accent/10"
+              >
+                Guardar Posiciones
+              </button>
+            </div>
           </div>
         </div>
       );
