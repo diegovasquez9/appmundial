@@ -322,7 +322,7 @@
       const [predictions, setPredictions] = useState({});
       const [groups, setGroups] = useState([]);
       const [groupOverrides, setGroupOverrides] = useState([]);
-      const [systemTime, setSystemTime] = useState(new Date().toISOString().substring(0, 16));
+      const [systemTime, setSystemTime] = useState(new Date().toISOString());
       const [isTimeSimulated, setIsTimeSimulated] = useState(false);
       
       const [activeTab, setActiveTab] = useState("dashboard");
@@ -374,7 +374,7 @@
         // Setup real time clock tick if not simulated
         const timer = setInterval(() => {
           if (!isTimeSimulated) {
-            setSystemTime(new Date().toISOString().substring(0, 16));
+            setSystemTime(new Date().toISOString());
           }
         }, 30000); // every 30s
 
@@ -1188,10 +1188,20 @@
         return { points, exacts, outcomes, missed, predictedCount };
       }, [user, resolvedMatches, predictions]);
 
-      // Horizontal list of matches scheduled for today
+      // Horizontal list of matches scheduled for today (timezone aware)
       const todayMatches = useMemo(() => {
-        const sysDateString = systemTime.split("T")[0];
-        return resolvedMatches.filter(m => m.date.startsWith(sysDateString));
+        const getLocalDateString = (dateObj) => {
+          const yyyy = dateObj.getFullYear();
+          const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+          const dd = String(dateObj.getDate()).padStart(2, '0');
+          return `${yyyy}-${mm}-${dd}`;
+        };
+        const sysDate = new Date(systemTime);
+        const sysDateString = getLocalDateString(sysDate);
+        return resolvedMatches.filter(m => {
+          const matchDate = new Date(m.date);
+          return getLocalDateString(matchDate) === sysDateString;
+        });
       }, [resolvedMatches, systemTime]);
 
       if (authLoading) {
@@ -1430,7 +1440,7 @@
               matches={resolvedMatches}
               onUpdateMatch={handleAdminUpdateMatch}
               onSetTime={(t) => { setSystemTime(t); setIsTimeSimulated(true); }}
-              onResetTime={() => { setSystemTime(new Date().toISOString().substring(0, 16)); setIsTimeSimulated(false); triggerSaveToast("Hora sincronizada con tiempo real"); }}
+              onResetTime={() => { setSystemTime(new Date().toISOString()); setIsTimeSimulated(false); triggerSaveToast("Hora sincronizada con tiempo real"); }}
               triggerSaveToast={triggerSaveToast}
               setMatches={setMatches}
             />
