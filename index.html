@@ -747,12 +747,18 @@
       // ----------------------------------------------------
       const handleAdminUpdateMatch = async (matchId, data) => {
         try {
+          const matchObj = matches.find(m => m.id === matchId);
+          const isKnockout = matchObj && !matchObj.stage.includes("Grupo");
+          const isDraw = data.homeScore !== "" && data.homeScore !== null && data.awayScore !== "" && data.awayScore !== null && parseInt(data.homeScore) === parseInt(data.awayScore);
+          const pWinner = (isKnockout && isDraw) ? data.penaltiesWinner : null;
+
           const { error } = await supabase
             .from('matches')
             .update({
               home_score: data.homeScore === "" || data.homeScore === null ? null : parseInt(data.homeScore),
               away_score: data.awayScore === "" || data.awayScore === null ? null : parseInt(data.awayScore),
-              status: data.status
+              status: data.status,
+              penalties_winner: pWinner
             })
             .eq('id', matchId);
 
@@ -765,7 +771,8 @@
                 ...m,
                 home_score: data.homeScore === "" || data.homeScore === null ? null : parseInt(data.homeScore),
                 away_score: data.awayScore === "" || data.awayScore === null ? null : parseInt(data.awayScore),
-                status: data.status
+                status: data.status,
+                penalties_winner: pWinner
               };
             }
             return m;
@@ -1138,6 +1145,14 @@
               } else if (aScore > hScore) {
                 winner = aResolvedName;
                 loser = hResolvedName;
+              } else if (hScore === aScore) {
+                if (m.penalties_winner === "home") {
+                  winner = hResolvedName;
+                  loser = aResolvedName;
+                } else if (m.penalties_winner === "away") {
+                  winner = aResolvedName;
+                  loser = hResolvedName;
+                }
               }
             }
 
@@ -3526,13 +3541,20 @@
       const [hScore, setHScore] = useState(match.home_score !== null ? match.home_score : "");
       const [aScore, setAScore] = useState(match.away_score !== null ? match.away_score : "");
       const [status, setStatus] = useState(match.status);
+      const [penaltiesWinner, setPenaltiesWinner] = useState(match.penalties_winner || null);
       const [saving, setSaving] = useState(false);
 
       useEffect(() => {
         setHScore(match.home_score !== null ? match.home_score : "");
         setAScore(match.away_score !== null ? match.away_score : "");
         setStatus(match.status);
+        setPenaltiesWinner(match.penalties_winner || null);
       }, [match]);
+
+      const isKnockout = !match.stage.includes("Grupo");
+      const isDraw = hScore !== "" && hScore !== null && aScore !== "" && aScore !== null && parseInt(hScore) === parseInt(aScore);
+      const showPenaltiesSelector = isKnockout && isDraw;
+      const isUpdateDisabled = saving || (showPenaltiesSelector && !penaltiesWinner);
 
       const handleUpdate = async () => {
         setSaving(true);
@@ -3547,7 +3569,8 @@
           await onSave(match.id, {
             homeScore: hScore,
             awayScore: aScore,
-            status: finalStatus
+            status: finalStatus,
+            penaltiesWinner: showPenaltiesSelector ? penaltiesWinner : null
           });
         } finally {
           setSaving(false);
@@ -3618,6 +3641,44 @@
             </div>
           </div>
 
+          {/* Penalties Selection Box */}
+          {showPenaltiesSelector && (
+            <div className="bg-slate-950/80 border border-soccer-border rounded-xl p-2.5 flex flex-col gap-2 mt-1">
+              <span className="text-[10px] font-bold text-soccer-accent flex items-center gap-1">
+                <span>🏆 Definición por Penales (¿Quién avanza?)</span>
+              </span>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPenaltiesWinner("home")}
+                  className={`py-1.5 px-2 rounded-lg text-[10px] font-bold transition-all border truncate ${
+                    penaltiesWinner === "home"
+                      ? "bg-soccer-primary text-soccer-darker border-soccer-primary shadow-lg shadow-soccer-primary/10"
+                      : "bg-slate-900 text-slate-300 border-soccer-border hover:border-slate-700"
+                  }`}
+                >
+                  {match.home_team_name}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPenaltiesWinner("away")}
+                  className={`py-1.5 px-2 rounded-lg text-[10px] font-bold transition-all border truncate ${
+                    penaltiesWinner === "away"
+                      ? "bg-soccer-primary text-soccer-darker border-soccer-primary shadow-lg shadow-soccer-primary/10"
+                      : "bg-slate-900 text-slate-300 border-soccer-border hover:border-slate-700"
+                  }`}
+                >
+                  {match.away_team_name}
+                </button>
+              </div>
+              {!penaltiesWinner && (
+                <span className="text-[9px] font-bold text-rose-400 mt-0.5 text-center">
+                  ⚠️ Debe seleccionar el ganador de penales para guardar.
+                </span>
+              )}
+            </div>
+          )}
+
           {/* Action Row */}
           <div className="flex items-center justify-between gap-2 border-t border-slate-900 pt-2.5 mt-1">
             <select
@@ -3632,8 +3693,8 @@
 
             <button
               onClick={handleUpdate}
-              disabled={saving}
-              className="bg-soccer-accent hover:bg-amber-400 disabled:opacity-50 text-soccer-darker font-black text-[10px] py-1 px-3 rounded-lg transition-all flex items-center gap-1"
+              disabled={isUpdateDisabled}
+              className="bg-soccer-accent hover:bg-amber-400 disabled:opacity-50 disabled:hover:bg-soccer-accent text-soccer-darker font-black text-[10px] py-1 px-3 rounded-lg transition-all flex items-center gap-1"
             >
               {saving ? (
                 <>
