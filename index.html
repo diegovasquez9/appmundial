@@ -300,6 +300,7 @@
       const [user, setUser] = useState(null);
       const [profile, setProfile] = useState(null);
       const [authLoading, setAuthLoading] = useState(true);
+      const [showOnboarding, setShowOnboarding] = useState(false);
 
       // Data States
       const [matches, _setMatches] = useState([]);
@@ -482,6 +483,9 @@
 
           if (profileErr) throw profileErr;
           setProfile(profileData);
+          if (profileData && !profileData.has_completed_onboarding) {
+            setShowOnboarding(true);
+          }
 
           // b. Matches
           const { data: matchesData, error: matchesErr } = await supabase
@@ -561,6 +565,24 @@
           setAuthLoading(false);
         } else {
           triggerSaveToast("Sesión cerrada");
+        }
+      };
+
+      // ----------------------------------------------------
+      // ONBOARDING ACTIONS
+      // ----------------------------------------------------
+      const handleCompleteOnboarding = async () => {
+        setShowOnboarding(false);
+        if (profile) {
+          setProfile(prev => ({ ...prev, has_completed_onboarding: true }));
+          try {
+            await supabase
+              .from('profiles')
+              .update({ has_completed_onboarding: true })
+              .eq('id', user.id);
+          } catch (err) {
+            console.error("Error updating onboarding status:", err);
+          }
         }
       };
 
@@ -1408,6 +1430,11 @@
               triggerSaveToast={triggerSaveToast}
               setMatches={setMatches}
             />
+          )}
+
+          {/* ONBOARDING TOUR MODAL */}
+          {showOnboarding && (
+            <OnboardingModal onClose={handleCompleteOnboarding} />
           )}
 
         </div>
@@ -2557,6 +2584,192 @@
                   Crear Grupo
                 </button>
               </form>
+            </div>
+
+          </div>
+        </div>
+      );
+    }
+
+    // ----------------------------------------------------
+    // SUB-COMPONENTS: ONBOARDING MODAL TOUR
+    // ----------------------------------------------------
+    function OnboardingModal({ onClose }) {
+      const [currentStep, setCurrentStep] = useState(0);
+
+      const steps = [
+        {
+          title: "¡Bienvenido a Mundial '26! 🏆",
+          icon: "soccerBall",
+          content: (
+            <div className="space-y-4">
+              <p className="text-sm text-slate-300 leading-relaxed">
+                Te damos la bienvenida a la plataforma definitiva para vivir la Copa del Mundo 2026. Aquí podrás pronosticar resultados, seguir las posiciones de los grupos en tiempo real y competir en grupos privados con tus amigos.
+              </p>
+              <div className="space-y-2 bg-slate-950/40 border border-soccer-border/30 rounded-2xl p-4 text-xs text-soccer-textMuted">
+                <div className="flex items-center gap-2.5">
+                  <span className="text-base">📅</span>
+                  <span>Calendario completo de 104 partidos del torneo.</span>
+                </div>
+                <div className="flex items-center gap-2.5">
+                  <span className="text-base">📊</span>
+                  <span>Tablas oficiales con cálculo automático de posiciones.</span>
+                </div>
+                <div className="flex items-center gap-2.5">
+                  <span className="text-base">👥</span>
+                  <span>Ligas y pollas de amigos en tiempo real.</span>
+                </div>
+              </div>
+            </div>
+          )
+        },
+        {
+          title: "Pronósticos y Puntuación ⚽",
+          icon: "award",
+          content: (
+            <div className="space-y-4">
+              <p className="text-sm text-slate-300 leading-relaxed">
+                Ingresa a la pestaña <span className="text-soccer-primary font-bold">Mis Pronósticos</span> para colocar tus predicciones. Los puntos se calculan automáticamente cuando finalizan los partidos:
+              </p>
+              <div className="grid grid-cols-1 gap-2.5">
+                <div className="flex items-center justify-between bg-slate-950/40 border border-soccer-border/30 rounded-2xl p-3.5 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="bg-amber-950 text-amber-400 p-1.5 rounded-lg border border-amber-900/40 font-bold">5 pts</span>
+                    <span className="font-semibold text-white">Marcador Exacto</span>
+                  </div>
+                  <span className="text-[10px] text-soccer-textMuted italic">Aciertas goles de ambos</span>
+                </div>
+                <div className="flex items-center justify-between bg-slate-950/40 border border-soccer-border/30 rounded-2xl p-3.5 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="bg-emerald-950 text-emerald-400 p-1.5 rounded-lg border border-emerald-900/40 font-bold">3 pts</span>
+                    <span className="font-semibold text-white">Resultado Simple</span>
+                  </div>
+                  <span className="text-[10px] text-soccer-textMuted italic">Aciertas ganador o empate</span>
+                </div>
+                <div className="flex items-center justify-between bg-slate-950/40 border border-slate-900/60 rounded-2xl p-3.5 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="bg-red-950 text-red-400 p-1.5 rounded-lg border border-red-900/40 font-bold">0 pts</span>
+                    <span className="font-semibold text-white">Sin Acierto / Pronóstico</span>
+                  </div>
+                  <span className="text-[10px] text-soccer-textMuted italic">Cualquier otro caso</span>
+                </div>
+              </div>
+            </div>
+          )
+        },
+        {
+          title: "Posiciones y Mejores Terceros 📊",
+          icon: "list",
+          content: (
+            <div className="space-y-4">
+              <p className="text-sm text-slate-300 leading-relaxed">
+                En la sección <span className="text-soccer-primary font-bold">Posiciones Grupos</span> encontrarás las tablas de clasificación de las 12 zonas de la Copa del Mundo:
+              </p>
+              <div className="space-y-2 bg-slate-950/40 border border-soccer-border/30 rounded-2xl p-4 text-xs text-soccer-textMuted">
+                <div className="flex items-start gap-2.5">
+                  <span className="text-base mt-0.5">📈</span>
+                  <span>Clasificación matemática instantánea basada en los partidos jugados.</span>
+                </div>
+                <div className="flex items-start gap-2.5">
+                  <span className="text-base mt-0.5">🟢</span>
+                  <span><strong>Tabla de Mejores Terceros:</strong> Se ubica al final de la pestaña. Filtra y ordena a los terceros lugares, marcando en verde brillante los 8 clasificados a Dieciseisavos.</span>
+                </div>
+              </div>
+            </div>
+          )
+        },
+        {
+          title: "Grupos de Amigos y Perfil 👥",
+          icon: "users",
+          content: (
+            <div className="space-y-4">
+              <p className="text-sm text-slate-300 leading-relaxed">
+                ¡La competencia es más emocionante con tus amigos! Organiza tu grupo privado en la pestaña <span className="text-soccer-primary font-bold">Grupos y Líderes</span>:
+              </p>
+              <div className="space-y-2 bg-slate-950/40 border border-soccer-border/30 rounded-2xl p-4 text-xs text-soccer-textMuted">
+                <div className="flex items-center gap-2.5">
+                  <span className="text-base">🔑</span>
+                  <span><strong>Código único:</strong> Copia el código de invitación con un botón rápido para invitar a tus amigos.</span>
+                </div>
+                <div className="flex items-center gap-2.5">
+                  <span className="text-base">⚡</span>
+                  <span><strong>Puntajes en vivo:</strong> La tabla se actualiza automáticamente en tiempo real.</span>
+                </div>
+                <div className="flex items-center gap-2.5">
+                  <span className="text-base">👤</span>
+                  <span><strong>Avatar y Nombre:</strong> Cambia tu nombre y selecciona tu emoji en <span className="text-white font-semibold">Mi Perfil</span>.</span>
+                </div>
+              </div>
+            </div>
+          )
+        }
+      ];
+
+      const step = steps[currentStep];
+
+      return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-soccer-darker/85 backdrop-blur-md p-4 animate-fade-in">
+          <div className="glass max-w-md w-full rounded-3xl p-6 md:p-8 border border-soccer-border shadow-2xl relative flex flex-col space-y-6">
+            
+            {/* Header / Title */}
+            <div className="flex items-center gap-3 border-b border-soccer-border pb-4">
+              <div className="bg-gradient-to-br from-soccer-primary to-emerald-700 p-2.5 rounded-xl shadow-inner shadow-soccer-primaryGlow/30">
+                <Icon name={step.icon} className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h3 className="text-md md:text-lg font-black uppercase tracking-tight display-font text-white">{step.title}</h3>
+                <span className="text-[9px] uppercase font-bold tracking-wider text-soccer-primary">Paso {currentStep + 1} de {steps.length}</span>
+              </div>
+            </div>
+
+            {/* Slide Content */}
+            <div className="min-h-[220px] flex flex-col justify-center">
+              {step.content}
+            </div>
+
+            {/* Progress Bar / Dots */}
+            <div className="flex justify-center items-center gap-2 py-2">
+              {steps.map((_, idx) => (
+                <div
+                  key={idx}
+                  className={`h-1.5 rounded-full transition-all duration-300 ${idx === currentStep ? 'w-6 bg-soccer-primary' : 'w-1.5 bg-slate-700'}`}
+                />
+              ))}
+            </div>
+
+            {/* Footer Navigation Buttons */}
+            <div className="flex justify-between items-center border-t border-soccer-border pt-4">
+              {currentStep > 0 ? (
+                <button
+                  onClick={() => setCurrentStep(prev => prev - 1)}
+                  className="text-xs font-bold text-soccer-textMuted hover:text-white transition-colors py-2 px-3 rounded-xl hover:bg-slate-800 cursor-pointer"
+                >
+                  Anterior
+                </button>
+              ) : (
+                <button
+                  onClick={onClose}
+                  className="text-xs font-bold text-red-400 hover:text-red-300 transition-colors py-2 px-3 rounded-xl hover:bg-red-950/20 cursor-pointer"
+                >
+                  Omitir Tour
+                </button>
+              )}
+
+              {currentStep < steps.length - 1 ? (
+                <button
+                  onClick={() => setCurrentStep(prev => prev + 1)}
+                  className="bg-soccer-primary hover:bg-emerald-400 text-soccer-darker text-xs py-2 px-5 rounded-xl transition-all font-bold shadow-md shadow-soccer-primary/20 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+                >
+                  Siguiente
+                </button>
+              ) : (
+                <button
+                  onClick={onClose}
+                  className="bg-gradient-to-r from-soccer-primary to-emerald-500 hover:from-emerald-400 hover:to-emerald-600 text-soccer-darker text-xs py-2 px-6 rounded-xl transition-all font-bold shadow-lg shadow-soccer-primary/30 hover:scale-[1.02] active:scale-[0.98] animate-pulse-slow cursor-pointer"
+                >
+                  ¡Comenzar! 🚀
+                </button>
+              )}
             </div>
 
           </div>
