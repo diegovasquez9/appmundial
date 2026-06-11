@@ -680,8 +680,6 @@
       // PREDICTIONS AUTO-SAVE ON BLUR
       // ----------------------------------------------------
       const handleSavePrediction = async (matchId, homeScore, awayScore) => {
-        if (homeScore === "" || awayScore === "") return; // Don't save incomplete predictions
-
         const predKey = `${user.id}_${matchId}`;
         const match = matches.find(m => m.id === matchId);
         if (!match) return;
@@ -692,6 +690,47 @@
         const diffMins = (kickoff.getTime() - sysTime.getTime()) / (1000 * 60);
         if (diffMins <= 10) {
           triggerSaveToast("Error: Las predicciones están cerradas (límite 10 min)");
+          return;
+        }
+
+        const isClearing = homeScore === "" || homeScore === null || awayScore === "" || awayScore === null;
+
+        if (isClearing) {
+          // Optimistic UI state update: remove prediction
+          setPredictions(prev => {
+            const clone = { ...prev };
+            delete clone[predKey];
+            return clone;
+          });
+
+          try {
+            const { error } = await supabase
+              .from('predictions')
+              .delete()
+              .eq('user_id', user.id)
+              .eq('match_id', matchId);
+
+            if (error) throw error;
+            triggerSaveToast("Pronóstico eliminado");
+          } catch (err) {
+            console.error("Supabase delete error:", err);
+            triggerSaveToast(`Error de base de datos: ${err.message}`);
+            
+            // Revert deletion by fetching the prediction again
+            const { data: originalPred } = await supabase
+              .from('predictions')
+              .select('*')
+              .eq('user_id', user.id)
+              .eq('match_id', matchId)
+              .maybeSingle();
+
+            if (originalPred) {
+              setPredictions(prev => ({
+                ...prev,
+                [predKey]: { homeScore: originalPred.home_score, awayScore: originalPred.away_score }
+              }));
+            }
+          }
           return;
         }
 
@@ -1827,7 +1866,10 @@
       }, [prediction]);
 
       const handleBlur = () => {
-        if (homeVal !== "" && awayVal !== "") {
+        const hasPrev = prediction && prediction.homeScore !== undefined && prediction.homeScore !== null && prediction.homeScore !== "";
+        const hasNew = homeVal !== "" && awayVal !== "";
+        
+        if (hasPrev || hasNew) {
           onSave(match.id, homeVal, awayVal);
         }
       };
@@ -3592,6 +3634,9 @@
         if (hScore !== "" && hScore !== null && aScore !== "" && aScore !== null && status === "Scheduled") {
           finalStatus = "Finished";
           setStatus("Finished");
+        } else if ((hScore === "" || hScore === null || aScore === "" || aScore === null) && status === "Finished") {
+          finalStatus = "Scheduled";
+          setStatus("Scheduled");
         }
 
         try {
