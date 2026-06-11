@@ -937,15 +937,23 @@
           return 5;
         }
 
-        // Rule 2: Outcome Match Only (3 Points)
+        // Rule 2: Outcome + Goal Difference for Wins (4 Points)
         const pDiff = pHome - pAway;
         const mDiff = mHome - mAway;
 
-        if ((pDiff > 0 && mDiff > 0) || (pDiff < 0 && mDiff < 0) || (pDiff === 0 && mDiff === 0)) {
+        if ((pDiff > 0 && mDiff > 0) || (pDiff < 0 && mDiff < 0)) {
+          if (pDiff === mDiff) {
+            return 4;
+          }
           return 3;
         }
 
-        // Rule 3: No Match (0 Points)
+        // Rule 3: Outcome for Draws (3 Points)
+        if (pDiff === 0 && mDiff === 0) {
+          return 3;
+        }
+
+        // Rule 4: No Match (0 Points)
         return 0;
       };
 
@@ -1194,7 +1202,7 @@
             if (pts !== null) {
               points += pts;
               if (pts === 5) exacts++;
-              else if (pts === 3) outcomes++;
+              else if (pts === 3 || pts === 4) outcomes++;
               else missed++;
             }
           }
@@ -1853,7 +1861,7 @@
       const awayCode = TEAM_COUNTRY_CODES[match.away_team_name];
 
       return (
-        <div className={`glass rounded-2xl p-4 transition-all duration-300 hover:-translate-y-0.5 shadow-md flex flex-col justify-between ${match.status === 'Live' ? 'border-red-500/50 shadow-red-950/20 shadow-lg' : ''} ${points === 5 ? 'glass-gold-glowing' : ''} ${points === 3 ? 'glass-glowing' : ''}`}>
+        <div className={`glass rounded-2xl p-4 transition-all duration-300 hover:-translate-y-0.5 shadow-md flex flex-col justify-between ${match.status === 'Live' ? 'border-red-500/50 shadow-red-950/20 shadow-lg' : ''} ${points === 5 ? 'glass-gold-glowing' : ''} ${points === 4 ? 'glass-blue-glowing' : ''} ${points === 3 ? 'glass-glowing' : ''}`}>
           
           <div className="flex justify-between items-center mb-3">
             <span className="text-[10px] font-bold tracking-wider text-soccer-textMuted uppercase">{match.stage}</span>
@@ -1975,15 +1983,18 @@
                 <div className={`p-2 rounded-xl text-center border flex items-center justify-between text-xs ${
                   points === 5 
                     ? 'bg-amber-950/40 text-amber-300 border-amber-700/50' 
-                    : points === 3 
-                      ? 'bg-emerald-950/40 text-emerald-300 border-emerald-700/50' 
-                      : 'bg-red-950/40 text-red-400 border-red-900/50'
+                    : points === 4 
+                      ? 'bg-sky-950/40 text-sky-300 border-sky-700/50' 
+                      : points === 3 
+                        ? 'bg-emerald-950/40 text-emerald-300 border-emerald-700/50' 
+                        : 'bg-red-950/40 text-red-400 border-red-900/50'
                 }`}>
                   <span className="font-medium">
                     Tu Pred: <span className="font-bold font-mono">{prediction.homeScore} - {prediction.awayScore}</span>
                   </span>
                   <span className="font-extrabold uppercase tracking-wide">
                     {points === 5 && "⭐ +5 pts (Marcador)"}
+                    {points === 4 && "⚡ +4 pts (Diferencia)"}
                     {points === 3 && "✓ +3 pts (Resultado)"}
                     {points === 0 && "✗ +0 pts (Fallido)"}
                   </span>
@@ -2328,7 +2339,7 @@
                   const pts = calculatePredictionScore(pred, match);
                   totalPoints += pts;
                   if (pts === 5) exactMatches++;
-                  else if (pts === 3) outcomeMatches++;
+                  else if (pts === 3 || pts === 4) outcomeMatches++;
                   else missedMatches++;
                 }
               }
@@ -2613,9 +2624,11 @@
                               <span className={`text-[9px] font-bold uppercase rounded px-1.5 ${
                                 pts === 5 
                                   ? 'bg-amber-950 text-amber-400 border border-amber-800' 
-                                  : pts === 3 
-                                    ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' 
-                                    : 'bg-red-950 text-red-400 border border-red-900/50'
+                                  : pts === 4 
+                                    ? 'bg-sky-950 text-sky-400 border border-sky-800'
+                                    : pts === 3 
+                                      ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' 
+                                      : 'bg-red-950 text-red-400 border border-red-900/50'
                               }`}>
                                 +{pts} pts
                               </span>
@@ -2724,6 +2737,13 @@
                     <span className="font-semibold text-white">Marcador Exacto</span>
                   </div>
                   <span className="text-[10px] text-soccer-textMuted italic">Aciertas goles de ambos</span>
+                </div>
+                <div className="flex items-center justify-between bg-slate-950/40 border border-soccer-border/30 rounded-2xl p-3.5 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="bg-sky-950 text-sky-400 p-1.5 rounded-lg border border-sky-900/40 font-bold">4 pts</span>
+                    <span className="font-semibold text-white">Ganador y Diferencia</span>
+                  </div>
+                  <span className="text-[10px] text-soccer-textMuted italic">Aciertas ganador y diferencia</span>
                 </div>
                 <div className="flex items-center justify-between bg-slate-950/40 border border-soccer-border/30 rounded-2xl p-3.5 text-xs">
                   <div className="flex items-center gap-2">
@@ -3059,9 +3079,11 @@
                         <span className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase border ${
                           points === 5 
                             ? 'bg-amber-950 text-amber-400 border-amber-800' 
-                            : points === 3 
-                              ? 'bg-emerald-950 text-emerald-400 border-emerald-800' 
-                              : 'bg-red-950 text-red-400 border-red-900/50'
+                            : points === 4 
+                              ? 'bg-sky-950 text-sky-400 border-sky-800'
+                              : points === 3 
+                                ? 'bg-emerald-950 text-emerald-400 border-emerald-800' 
+                                : 'bg-red-950 text-red-400 border-red-900/50'
                         }`}>
                           +{points} pts
                         </span>
@@ -3341,11 +3363,18 @@
                     <p className="text-[11px] text-slate-300 mt-0.5">Le atinas al ganador/empate y a la cantidad exacta de goles de ambos equipos. (Ej: Predicción: 2-1 | Resultado: 2-1).</p>
                   </div>
                 </li>
+                <li className="flex items-start gap-3 bg-sky-950/20 border border-sky-900/30 p-3 rounded-xl">
+                  <span className="text-2xl">⚡</span>
+                  <div>
+                    <h4 className="font-bold text-sky-400 text-xs">Ganador y Diferencia (4 Puntos)</h4>
+                    <p className="text-[11px] text-slate-300 mt-0.5">Le atinas al ganador y a la diferencia exacta de goles, pero no al marcador exacto. Solo aplica para victorias. (Ej: Predicción: 1-0 | Resultado: 2-1; o Predicción: 3-1 | Resultado: 2-0).</p>
+                  </div>
+                </li>
                 <li className="flex items-start gap-3 bg-emerald-950/20 border border-emerald-900/30 p-3 rounded-xl">
                   <span className="text-2xl">✓</span>
                   <div>
                     <h4 className="font-bold text-emerald-400 text-xs">Resultado Acertado Solo (3 Puntos)</h4>
-                    <p className="text-[11px] text-slate-300 mt-0.5">Le atinas al ganador o al empate, pero fallas en los marcadores de goles específicos. (Ej: Predicción: 1-0 | Resultado: 3-1).</p>
+                    <p className="text-[11px] text-slate-300 mt-0.5">Le atinas al ganador o al empate, pero fallas en los marcadores de goles específicos y la diferencia. (Ej: Predicción: 1-0 | Resultado: 3-1; o Predicción: 2-2 | Resultado: 1-1).</p>
                   </div>
                 </li>
                 <li className="flex items-start gap-3 bg-slate-900/40 border border-slate-800 p-3 rounded-xl">
