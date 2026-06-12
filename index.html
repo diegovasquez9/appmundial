@@ -2378,6 +2378,7 @@
             const uId = m.user_id;
             let totalPoints = 0;
             let exactMatches = 0;
+            let diffMatches = 0;
             let outcomeMatches = 0;
             let missedMatches = 0;
             let totalPredicted = 0;
@@ -2390,7 +2391,8 @@
                   const pts = calculatePredictionScore(pred, match);
                   totalPoints += pts;
                   if (pts === 5) exactMatches++;
-                  else if (pts === 3 || pts === 4) outcomeMatches++;
+                  else if (pts === 4) diffMatches++;
+                  else if (pts === 3) outcomeMatches++;
                   else missedMatches++;
                 }
               }
@@ -2402,16 +2404,18 @@
               avatar: profile.avatar,
               totalPoints,
               exactMatches,
+              diffMatches,
               outcomeMatches,
               missedMatches,
               totalPredicted
             };
           });
 
-          // Sort standings: Points desc, exact matches desc, name asc
+          // Sort standings: Points desc, exact matches desc, diff matches desc, name asc
           standings.sort((a, b) => {
             if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
             if (b.exactMatches !== a.exactMatches) return b.exactMatches - a.exactMatches;
+            if (b.diffMatches !== a.diffMatches) return b.diffMatches - a.diffMatches;
             return a.name.localeCompare(b.name);
           });
 
@@ -2551,6 +2555,7 @@
                             <th className="py-2.5 px-3">Usuario</th>
                             <th className="py-2.5 px-3 text-center">Puntos</th>
                             <th className="py-2.5 px-3 text-center hidden sm:table-cell">Marcador (5p)</th>
+                            <th className="py-2.5 px-3 text-center hidden sm:table-cell">Ganador y Dif (4p)</th>
                             <th className="py-2.5 px-3 text-center hidden sm:table-cell">Resultado (3p)</th>
                             <th className="py-2.5 px-3 text-center hidden md:table-cell">Pronosticados</th>
                           </tr>
@@ -2588,6 +2593,9 @@
                                 <td className="py-3 px-3 text-center font-semibold text-amber-400 font-mono hidden sm:table-cell">
                                   {standing.exactMatches}
                                 </td>
+                                <td className="py-3 px-3 text-center font-semibold text-sky-400 font-mono hidden sm:table-cell">
+                                  {standing.diffMatches}
+                                </td>
                                 <td className="py-3 px-3 text-center font-semibold text-emerald-400 font-mono hidden sm:table-cell">
                                   {standing.outcomeMatches}
                                 </td>
@@ -2599,7 +2607,7 @@
                           })}
                           {leaderboardData.length === 0 && (
                             <tr>
-                              <td colSpan="6" className="py-8 text-center text-soccer-textMuted">El grupo no tiene miembros registrados.</td>
+                              <td colSpan="7" className="py-8 text-center text-soccer-textMuted">El grupo no tiene miembros registrados.</td>
                             </tr>
                           )}
                         </tbody>
