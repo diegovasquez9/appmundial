@@ -1223,18 +1223,24 @@
 
       // Calculate stats for current active user
       const currentUserStats = useMemo(() => {
-        if (!user) return { points: 0, exacts: 0, outcomes: 0, missed: 0, predictedCount: 0 };
+        if (!user) return { points: 0, exacts: 0, outcomes: 0, missed: 0, predictedCount: 0, finishedPredictedCount: 0 };
         let points = 0;
         let exacts = 0;
         let outcomes = 0;
         let missed = 0;
         let predictedCount = 0;
+        let finishedPredictedCount = 0;
 
         resolvedMatches.forEach(m => {
           const pred = predictions[`${user.id}_${m.id}`];
           const hasPrediction = pred && pred.homeScore !== "" && pred.awayScore !== "";
 
-          if (hasPrediction) predictedCount++;
+          if (hasPrediction) {
+            predictedCount++;
+            if (m.status === "Finished") {
+              finishedPredictedCount++;
+            }
+          }
           
           if (m.status === "Finished") {
             const pts = calculatePredictionScore(pred, m);
@@ -1247,7 +1253,7 @@
           }
         });
 
-        return { points, exacts, outcomes, missed, predictedCount };
+        return { points, exacts, outcomes, missed, predictedCount, finishedPredictedCount };
       }, [user, resolvedMatches, predictions]);
 
       // Horizontal list of matches scheduled for today (timezone aware)
@@ -3041,8 +3047,9 @@
         });
       }, [currentUser, matches, predictions]);
 
-      const accuracy = stats.predictedCount > 0 
-        ? Math.round(((stats.exacts + stats.outcomes) / stats.predictedCount) * 100) 
+      const maxPossiblePoints = stats.finishedPredictedCount * 5;
+      const accuracy = maxPossiblePoints > 0 
+        ? Math.round((stats.points / maxPossiblePoints) * 100) 
         : 0;
 
       return (
