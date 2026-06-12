@@ -1222,10 +1222,12 @@
       }, [matches, resolvedTeamsMap]);
 
       // Calculate stats for current active user
+      // Calculate stats for current active user
       const currentUserStats = useMemo(() => {
-        if (!user) return { points: 0, exacts: 0, outcomes: 0, missed: 0, predictedCount: 0, finishedPredictedCount: 0 };
+        if (!user) return { points: 0, exacts: 0, diffs: 0, outcomes: 0, missed: 0, predictedCount: 0, finishedPredictedCount: 0 };
         let points = 0;
         let exacts = 0;
+        let diffs = 0;
         let outcomes = 0;
         let missed = 0;
         let predictedCount = 0;
@@ -1247,13 +1249,14 @@
             if (pts !== null) {
               points += pts;
               if (pts === 5) exacts++;
-              else if (pts === 3 || pts === 4) outcomes++;
+              else if (pts === 4) diffs++;
+              else if (pts === 3) outcomes++;
               else missed++;
             }
           }
         });
 
-        return { points, exacts, outcomes, missed, predictedCount, finishedPredictedCount };
+        return { points, exacts, diffs, outcomes, missed, predictedCount, finishedPredictedCount };
       }, [user, resolvedMatches, predictions]);
 
       // Horizontal list of matches scheduled for today (timezone aware)
@@ -3054,7 +3057,7 @@
 
       return (
         <div className="space-y-6">
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
             <div className="glass rounded-2xl p-4 text-center">
               <span className="text-soccer-textMuted text-[10px] uppercase font-bold tracking-wider">Puntos Totales</span>
               <p className="text-3xl font-black text-white font-mono mt-1 display-font">{stats.points}</p>
@@ -3064,6 +3067,10 @@
               <p className="text-3xl font-black text-soccer-accent font-mono mt-1 display-font">{stats.exacts}</p>
             </div>
             <div className="glass rounded-2xl p-4 text-center">
+              <span className="text-soccer-textMuted text-[10px] uppercase font-bold tracking-wider">Ganador y Dif (4p)</span>
+              <p className="text-3xl font-black text-sky-400 font-mono mt-1 display-font">{stats.diffs}</p>
+            </div>
+            <div className="glass rounded-2xl p-4 text-center">
               <span className="text-soccer-textMuted text-[10px] uppercase font-bold tracking-wider">Resultado Solo (3p)</span>
               <p className="text-3xl font-black text-emerald-400 font-mono mt-1 display-font">{stats.outcomes}</p>
             </div>
@@ -3071,9 +3078,9 @@
               <span className="text-soccer-textMuted text-[10px] uppercase font-bold tracking-wider">Fallados (0p)</span>
               <p className="text-3xl font-black text-slate-500 font-mono mt-1 display-font">{stats.missed}</p>
             </div>
-            <div className="glass rounded-2xl p-4 text-center col-span-2 md:col-span-1">
+            <div className="glass rounded-2xl p-4 text-center">
               <span className="text-soccer-textMuted text-[10px] uppercase font-bold tracking-wider">Efectividad</span>
-              <p className="text-3xl font-black text-sky-400 font-mono mt-1 display-font">{accuracy}%</p>
+              <p className="text-3xl font-black text-soccer-primary font-mono mt-1 display-font">{accuracy}%</p>
             </div>
           </div>
 
