@@ -2356,17 +2356,36 @@
 
           const memberIds = members.map(m => m.user_id);
 
-          // 2. Fetch locked/finished predictions of all group members
-          const { data: preds, error: pError } = await supabase
-            .from('predictions')
-            .select('user_id, match_id, home_score, away_score')
-            .in('user_id', memberIds);
+          // 2. Fetch locked/finished predictions of all group members (paginated to bypass PostgREST 1000 limit)
+          let allPredsList = [];
+          let fetchPage = 0;
+          const pageSize = 1000;
+          let hasMore = true;
 
-          if (pError) throw pError;
+          while (hasMore) {
+            const { data: pagePreds, error: pError } = await supabase
+              .from('predictions')
+              .select('user_id, match_id, home_score, away_score')
+              .in('user_id', memberIds)
+              .range(fetchPage * pageSize, (fetchPage + 1) * pageSize - 1);
+
+            if (pError) throw pError;
+            
+            if (!pagePreds || pagePreds.length === 0) {
+              hasMore = false;
+            } else {
+              allPredsList = [...allPredsList, ...pagePreds];
+              if (pagePreds.length < pageSize) {
+                hasMore = false;
+              } else {
+                fetchPage++;
+              }
+            }
+          }
 
           // Map predictions to dictionary object
           const allPreds = {};
-          preds?.forEach(p => {
+          allPredsList.forEach(p => {
             allPreds[`${p.user_id}_${p.match_id}`] = {
               homeScore: p.home_score,
               awayScore: p.away_score
