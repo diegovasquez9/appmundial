@@ -13,3 +13,11 @@
 - [x] Define a `handleTabChange` function to record scroll positions before active tab state changes
 - [x] Add a `useEffect` hook to restore tab scroll positions when the active tab is changed
 - [x] Verify layout and update the `walkthrough.md` documentation
+
+# Task Checklist: Browser Tab Focus Reload Bug
+- [x] Add an `isInitial` parameter to the `fetchUserData` function
+- [x] Conditionally trigger `setAuthLoading(true)` only when `isInitial` is true
+- [x] Update the initial auth session listener to pass `isInitial = true` to `fetchUserData`
+- [x] Update the realtime `onAuthStateChange` listener to pass `isInitial = !user` (false if user is already logged in)
+- [x] Document the resolution in `walkthrough.md`
+

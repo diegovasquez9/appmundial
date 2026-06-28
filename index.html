@@ -363,7 +363,7 @@
           setSession(session);
           if (session) {
             setUser(session.user);
-            fetchUserData(session.user.id);
+            fetchUserData(session.user.id, true); // Initial load triggers loader
           } else {
             setAuthLoading(false);
           }
@@ -376,8 +376,10 @@
             setShowResetPasswordModal(true);
           }
           if (session) {
+            // Only trigger fullscreen loader if we don't have a user loaded in local state yet
+            const isInitialLoad = !user;
             setUser(session.user);
-            fetchUserData(session.user.id);
+            fetchUserData(session.user.id, isInitialLoad);
           } else {
             setUser(null);
             setProfile(null);
@@ -490,9 +492,11 @@
       }, [user]);
 
       // Fetch all database records related to the user
-      const fetchUserData = async (userId) => {
+      const fetchUserData = async (userId, isInitial = false) => {
         try {
-          setAuthLoading(true);
+          if (isInitial) {
+            setAuthLoading(true);
+          }
 
           // a. Profile
           const { data: profileData, error: profileErr } = await supabase
