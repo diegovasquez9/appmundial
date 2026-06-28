@@ -902,9 +902,12 @@
       };
 
       const handleAdminUpdateGroupOverrides = async (groupLetter, teamOrder) => {
+        const isThirds = groupLetter === "3rd";
+        const label = isThirds ? "Mejores Terceros" : `Grupo ${groupLetter}`;
+        
         try {
           if (teamOrder === null) {
-            triggerSaveToast(`Restaurando posiciones del Grupo ${groupLetter}...`);
+            triggerSaveToast(`Restaurando posiciones de ${label}...`);
             const { error } = await supabase
               .from('group_overrides')
               .delete()
@@ -913,11 +916,11 @@
             if (error) throw error;
             
             setGroupOverrides(prev => prev.filter(o => o.group_letter !== groupLetter));
-            triggerSaveToast(`Grupo ${groupLetter} restaurado a cálculo automático`);
+            triggerSaveToast(`${label} restaurado a cálculo automático`);
             return;
           }
 
-          triggerSaveToast(`Guardando posiciones del Grupo ${groupLetter}...`);
+          triggerSaveToast(`Guardando posiciones de ${label}...`);
 
           const upserts = teamOrder.map((teamName, index) => ({
             group_letter: groupLetter,
@@ -936,7 +939,7 @@
             const clean = prev.filter(o => o.group_letter !== groupLetter);
             return [...clean, ...upserts];
           });
-          triggerSaveToast(`Posiciones del Grupo ${groupLetter} actualizadas con éxito`);
+          triggerSaveToast(`Posiciones de ${label} actualizadas con éxito`);
         } catch (err) {
           triggerSaveToast(`Error al guardar posiciones: ${err.message}`);
         }
@@ -1102,8 +1105,24 @@
           }
         });
 
+        // Check for manual overrides for best third-placed teams
+        const thirdsOverridesMap = {};
+        groupOverrides?.forEach(o => {
+          if (o.group_letter === "3rd") {
+            thirdsOverridesMap[o.team_name] = o.manual_rank;
+          }
+        });
+
         // Find the 8 best 3rd place teams
         groupThirds.sort((a, b) => {
+          const rankA = thirdsOverridesMap[a.name];
+          const rankB = thirdsOverridesMap[b.name];
+          if (rankA !== undefined && rankB !== undefined) {
+            return rankA - rankB; // manual_rank 1 is first, 2 is second, etc.
+          }
+          if (rankA !== undefined) return -1;
+          if (rankB !== undefined) return 1;
+
           if (b.points !== a.points) return b.points - a.points;
           if (b.goalDiff !== a.goalDiff) return b.goalDiff - a.goalDiff;
           if (b.goalsFor !== a.goalsFor) return b.goalsFor - a.goalsFor;
@@ -2167,8 +2186,24 @@
           }
         });
 
-        // Sort thirds: points desc, goalDiff desc, goalsFor desc, name asc
+        // Check for manual overrides for best third-placed teams
+        const thirdsOverridesMap = {};
+        groupOverrides?.forEach(o => {
+          if (o.group_letter === "3rd") {
+            thirdsOverridesMap[o.team_name] = o.manual_rank;
+          }
+        });
+
+        // Sort thirds: manual overrides first, then points desc, goalDiff desc, goalsFor desc, name asc
         thirds.sort((a, b) => {
+          const rankA = thirdsOverridesMap[a.name];
+          const rankB = thirdsOverridesMap[b.name];
+          if (rankA !== undefined && rankB !== undefined) {
+            return rankA - rankB;
+          }
+          if (rankA !== undefined) return -1;
+          if (rankB !== undefined) return 1;
+
           if (b.points !== a.points) return b.points - a.points;
           if (b.goalDiff !== a.goalDiff) return b.goalDiff - a.goalDiff;
           if (b.goalsFor !== a.goalsFor) return b.goalsFor - a.goalsFor;
@@ -2176,7 +2211,7 @@
         });
 
         return thirds;
-      }, [standingsByGroup]);
+      }, [standingsByGroup, groupOverrides]);
 
       return (
         <div className="space-y-6">
@@ -3836,15 +3871,99 @@
       const [selectedLetter, setSelectedLetter] = useState("A");
       const groupLetters = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"];
 
-      // Find the teams in the selected group dynamically from TEAM_GROUPS
+      // Calculate standings for ALL 12 groups, so we can extract the 3rd placed teams
+      const allGroupsThirds = useMemo(() => {
+        const thirds = [];
+
+        groupLetters.forEach(letter => {
+          // Get teams in this group
+          const teams = Object.entries(TEAM_GROUPS)
+            .filter(([team, l]) => l === letter)
+            .map(([team]) => team);
+
+          // Calculate stats for these teams
+          const stats = {};
+          teams.forEach(t => {
+            stats[t] = { points: 0, goalDiff: 0, goalsFor: 0, played: 0 };
+          });
+
+          matches.forEach(m => {
+            if (m.stage.includes(`Grupo ${letter}`) && m.status === "Finished" && m.home_score !== null && m.away_score !== null) {
+              const hGoals = parseInt(m.home_score);
+              const aGoals = parseInt(m.away_score);
+              const hTeam = m.home_team_name;
+              const aTeam = m.away_team_name;
+
+              if (stats[hTeam] && stats[aTeam]) {
+                stats[hTeam].played += 1;
+                stats[hTeam].goalsFor += hGoals;
+                stats[hTeam].goalDiff += (hGoals - aGoals);
+                stats[aTeam].played += 1;
+                stats[aTeam].goalsFor += aGoals;
+                stats[aTeam].goalDiff += (aGoals - hGoals);
+
+                if (hGoals > aGoals) {
+                  stats[hTeam].points += 3;
+                } else if (hGoals < aGoals) {
+                  stats[aTeam].points += 3;
+                } else {
+                  stats[hTeam].points += 1;
+                  stats[aTeam].points += 1;
+                }
+              }
+            }
+          });
+
+          // Sort the teams in the group, applying group overrides if any
+          const sorted = [...teams].sort((a, b) => {
+            const rankA = groupOverrides.find(o => o.group_letter === letter && o.team_name === a)?.manual_rank;
+            const rankB = groupOverrides.find(o => o.group_letter === letter && o.team_name === b)?.manual_rank;
+            if (rankA !== undefined && rankB !== undefined) return rankA - rankB;
+            
+            const statA = stats[a] || { points: 0, goalDiff: 0, goalsFor: 0 };
+            const statB = stats[b] || { points: 0, goalDiff: 0, goalsFor: 0 };
+            if (statB.points !== statA.points) return statB.points - statA.points;
+            if (statB.goalDiff !== statA.goalDiff) return statB.goalDiff - statA.goalDiff;
+            if (statB.goalsFor !== statA.goalsFor) return statB.goalsFor - statA.goalsFor;
+            return a.localeCompare(b);
+          });
+
+          const thirdPlaceTeamName = sorted[2];
+          if (thirdPlaceTeamName) {
+            thirds.push({
+              name: thirdPlaceTeamName,
+              group: letter,
+              played: stats[thirdPlaceTeamName].played,
+              points: stats[thirdPlaceTeamName].points,
+              goalDiff: stats[thirdPlaceTeamName].goalDiff,
+              goalsFor: stats[thirdPlaceTeamName].goalsFor
+            });
+          }
+        });
+
+        return thirds;
+      }, [matches, groupOverrides]);
+
+      // Find the teams in the selected group dynamically from TEAM_GROUPS (or allGroupsThirds if selectedLetter is "3rd")
       const groupTeams = useMemo(() => {
+        if (selectedLetter === "3rd") {
+          return allGroupsThirds.map(t => t.name);
+        }
         return Object.entries(TEAM_GROUPS)
           .filter(([team, letter]) => letter === selectedLetter)
           .map(([team]) => team);
-      }, [selectedLetter]);
+      }, [selectedLetter, allGroupsThirds]);
 
       // Calculate stats for these teams using matches, just to show their current points
       const teamStats = useMemo(() => {
+        if (selectedLetter === "3rd") {
+          const stats = {};
+          allGroupsThirds.forEach(t => {
+            stats[t.name] = { points: t.points, goalDiff: t.goalDiff, goalsFor: t.goalsFor };
+          });
+          return stats;
+        }
+
         const stats = {};
         groupTeams.forEach(t => {
           stats[t] = { points: 0, goalDiff: 0, goalsFor: 0 };
@@ -3876,7 +3995,7 @@
         });
 
         return stats;
-      }, [groupTeams, matches, selectedLetter]);
+      }, [groupTeams, matches, selectedLetter, allGroupsThirds]);
 
       // State to track the local order of teams in the selector
       const [localOrder, setLocalOrder] = useState([]);
@@ -3893,7 +4012,7 @@
         
         const overrides = Object.values(uniqueOverridesMap);
 
-        if (overrides.length === 4) {
+        if (overrides.length === groupTeams.length && groupTeams.length > 0) {
           const sorted = [...overrides].sort((a, b) => a.manual_rank - b.manual_rank);
           setLocalOrder(sorted.map(s => s.team_name));
         } else {
@@ -3934,6 +4053,7 @@
               {groupLetters.map(l => (
                 <option key={l} value={l}>Grupo {l}</option>
               ))}
+              <option value="3rd">Mejores Terceros</option>
             </select>
             
             <div className="pt-1">
@@ -3948,7 +4068,11 @@
           </div>
 
           <div className="flex-1 w-full space-y-3">
-            <div className="text-[10px] uppercase font-bold text-soccer-textMuted">Orden de Clasificación (Arriba 1°, Abajo 4°)</div>
+            <div className="text-[10px] uppercase font-bold text-soccer-textMuted">
+              {selectedLetter === "3rd" 
+                ? "Orden de Clasificación de Terceros (Arriba 1° al 12°)" 
+                : "Orden de Clasificación (Arriba 1°, Abajo 4°)"}
+            </div>
             <div className="space-y-2">
               {localOrder.map((team, idx) => {
                 const stats = teamStats[team] || { points: 0, goalDiff: 0, goalsFor: 0 };
@@ -3965,6 +4089,11 @@
                         <span className="text-sm select-none">🏳️</span>
                       )}
                       <span className="font-bold text-slate-200">{team}</span>
+                      {selectedLetter === "3rd" && (
+                        <span className="text-[9px] bg-slate-900 border border-soccer-border px-1.5 py-0.5 rounded text-soccer-accent font-bold">
+                          Grupo {TEAM_GROUPS[team]}
+                        </span>
+                      )}
                       <span className="text-[10px] text-soccer-textMuted font-mono">
                         ({stats.points} pts, {stats.goalDiff > 0 ? `+${stats.goalDiff}` : stats.goalDiff} DG, {stats.goalsFor} GF)
                       </span>
