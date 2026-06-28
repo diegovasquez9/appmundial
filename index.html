@@ -327,6 +327,21 @@
       const [isTimeSimulated, setIsTimeSimulated] = useState(false);
       
       const [activeTab, setActiveTab] = useState("dashboard");
+      const tabScrollPositions = useRef({});
+
+      const handleTabChange = (tabName) => {
+        tabScrollPositions.current[activeTab] = window.scrollY;
+        setActiveTab(tabName);
+      };
+
+      useEffect(() => {
+        const savedPos = tabScrollPositions.current[activeTab] || 0;
+        const timer = setTimeout(() => {
+          window.scrollTo(0, savedPos);
+        }, 30);
+        return () => clearTimeout(timer);
+      }, [activeTab]);
+
       const [selectedGroup, setSelectedGroup] = useState("");
       const [showAdmin, setShowAdmin] = useState(false);
       
@@ -1358,7 +1373,7 @@
                   </div>
                   <div className="p-1 space-y-0.5">
                     <button
-                      onClick={() => setActiveTab("profile")}
+                      onClick={() => handleTabChange("profile")}
                       className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-left text-slate-300 hover:bg-slate-800 transition-colors font-semibold"
                     >
                       <Icon name="user" className="w-3.5 h-3.5 text-soccer-primary" />
@@ -1383,42 +1398,42 @@
             {/* TAB NAVIGATION */}
             <nav className="flex bg-slate-950 p-1.5 rounded-xl border border-soccer-border overflow-x-auto whitespace-nowrap scrollbar-none gap-1">
               <button
-                onClick={() => setActiveTab("dashboard")}
+                onClick={() => handleTabChange("dashboard")}
                 className={`flex-1 sm:flex-initial flex-shrink-0 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold tracking-wide transition-all ${activeTab === "dashboard" ? 'bg-soccer-primary text-soccer-darker font-bold shadow-md shadow-soccer-primary/20' : 'text-soccer-textMuted hover:text-white'}`}
               >
                 <Icon name="calendar" className="w-4 h-4" />
                 <span>Partidos</span>
               </button>
               <button
-                onClick={() => setActiveTab("positions")}
+                onClick={() => handleTabChange("positions")}
                 className={`flex-1 sm:flex-initial flex-shrink-0 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold tracking-wide transition-all ${activeTab === "positions" ? 'bg-soccer-primary text-soccer-darker font-bold shadow-md shadow-soccer-primary/20' : 'text-soccer-textMuted hover:text-white'}`}
               >
                 <Icon name="list" className="w-4 h-4" />
                 <span>Posiciones Grupos</span>
               </button>
               <button
-                onClick={() => setActiveTab("leaderboards")}
+                onClick={() => handleTabChange("leaderboards")}
                 className={`flex-1 sm:flex-initial flex-shrink-0 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold tracking-wide transition-all ${activeTab === "leaderboards" ? 'bg-soccer-primary text-soccer-darker font-bold shadow-md shadow-soccer-primary/20' : 'text-soccer-textMuted hover:text-white'}`}
               >
                 <Icon name="users" className="w-4 h-4" />
                 <span>Grupos y Rankings</span>
               </button>
               <button
-                onClick={() => setActiveTab("my-stats")}
+                onClick={() => handleTabChange("my-stats")}
                 className={`flex-1 sm:flex-initial flex-shrink-0 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold tracking-wide transition-all ${activeTab === "my-stats" ? 'bg-soccer-primary text-soccer-darker font-bold shadow-md shadow-soccer-primary/20' : 'text-soccer-textMuted hover:text-white'}`}
               >
                 <Icon name="award" className="w-4 h-4" />
                 <span>Mis Estadísticas</span>
               </button>
               <button
-                onClick={() => setActiveTab("profile")}
+                onClick={() => handleTabChange("profile")}
                 className={`flex-1 sm:flex-initial flex-shrink-0 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold tracking-wide transition-all ${activeTab === "profile" ? 'bg-soccer-primary text-soccer-darker font-bold shadow-md shadow-soccer-primary/20' : 'text-soccer-textMuted hover:text-white'}`}
               >
                 <Icon name="user" className="w-4 h-4" />
                 <span>Mi Perfil</span>
               </button>
               <button
-                onClick={() => setActiveTab("rules")}
+                onClick={() => handleTabChange("rules")}
                 className={`flex-1 sm:flex-initial flex-shrink-0 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold tracking-wide transition-all ${activeTab === "rules" ? 'bg-soccer-primary text-soccer-darker font-bold shadow-md shadow-soccer-primary/20' : 'text-soccer-textMuted hover:text-white'}`}
               >
                 <Icon name="helpCircle" className="w-4 h-4" />
@@ -1426,7 +1441,7 @@
               </button>
               {user && user.email === "diegorene9406@gmail.com" && (
                 <button
-                  onClick={() => setActiveTab("admin-results")}
+                  onClick={() => handleTabChange("admin-results")}
                   className={`flex-1 sm:flex-initial flex-shrink-0 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold tracking-wide border border-soccer-accent/20 transition-all ${activeTab === "admin-results" ? 'bg-soccer-accent text-soccer-darker font-bold shadow-md shadow-soccer-accent/20' : 'text-soccer-accent hover:text-white'}`}
                 >
                   <Icon name="settings" className="w-4 h-4" />
@@ -1436,7 +1451,7 @@
             </nav>
 
             {/* RENDER ACTIVE TAB */}
-            {activeTab === "dashboard" && (
+            <div className={activeTab === "dashboard" ? "" : "hidden"}>
               <DashboardTab
                 todayMatches={todayMatches}
                 matches={resolvedMatches}
@@ -1447,13 +1462,13 @@
                 calculatePredictionScore={calculatePredictionScore}
                 handleSavePrediction={handleSavePrediction}
               />
-            )}
+            </div>
 
-            {activeTab === "positions" && (
+            <div className={activeTab === "positions" ? "" : "hidden"}>
               <PositionsTab matches={resolvedMatches} groupOverrides={groupOverrides} />
-            )}
+            </div>
 
-            {activeTab === "leaderboards" && (
+            <div className={activeTab === "leaderboards" ? "" : "hidden"}>
               <LeaderboardTab
                 groups={groups}
                 selectedGroup={selectedGroup}
@@ -1466,9 +1481,9 @@
                 calculatePredictionScore={calculatePredictionScore}
                 triggerSaveToast={triggerSaveToast}
               />
-            )}
+            </div>
 
-            {activeTab === "my-stats" && (
+            <div className={activeTab === "my-stats" ? "" : "hidden"}>
               <StatsTab
                 currentUser={user}
                 stats={currentUserStats}
@@ -1476,9 +1491,9 @@
                 predictions={predictions}
                 calculatePredictionScore={calculatePredictionScore}
               />
-            )}
+            </div>
 
-            {activeTab === "profile" && (
+            <div className={activeTab === "profile" ? "" : "hidden"}>
               <ProfileTab
                 currentUser={user}
                 profile={profile}
@@ -1486,19 +1501,23 @@
                 handleLogout={handleLogout}
                 triggerSaveToast={triggerSaveToast}
               />
-            )}
+            </div>
 
-            {activeTab === "rules" && <RulesTab />}
+            <div className={activeTab === "rules" ? "" : "hidden"}>
+              <RulesTab />
+            </div>
 
-            {activeTab === "admin-results" && user && user.email === "diegorene9406@gmail.com" && (
-              <AdminResultsTab
-                matches={resolvedMatches}
-                onUpdateMatch={handleAdminUpdateMatch}
-                onSimulateGroupStage={handleAdminSimulateGroupStage}
-                onResetAllScores={handleAdminResetAllScores}
-                groupOverrides={groupOverrides}
-                onUpdateGroupOverrides={handleAdminUpdateGroupOverrides}
-              />
+            {user && user.email === "diegorene9406@gmail.com" && (
+              <div className={activeTab === "admin-results" ? "" : "hidden"}>
+                <AdminResultsTab
+                  matches={resolvedMatches}
+                  onUpdateMatch={handleAdminUpdateMatch}
+                  onSimulateGroupStage={handleAdminSimulateGroupStage}
+                  onResetAllScores={handleAdminResetAllScores}
+                  groupOverrides={groupOverrides}
+                  onUpdateGroupOverrides={handleAdminUpdateGroupOverrides}
+                />
+              </div>
             )}
           </main>
 

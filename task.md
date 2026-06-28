@@ -6,3 +6,10 @@
 - [x] Modify best third-placed teams sorting logic in `PositionsTab` to respect manual overrides
 - [x] Update database save helper `handleAdminUpdateGroupOverrides` to support generic labels for groups and best thirds
 - [x] Update `walkthrough.md` to document the changes
+
+# Task Checklist: Tab State & Scroll Position Preservation
+- [x] Refactor conditional tab mounting in `index.html` to CSS `hidden` class wrapper elements
+- [x] Implement a `useRef` to store scroll positions of each tab in `App` component
+- [x] Define a `handleTabChange` function to record scroll positions before active tab state changes
+- [x] Add a `useEffect` hook to restore tab scroll positions when the active tab is changed
+- [x] Verify layout and update the `walkthrough.md` documentation
