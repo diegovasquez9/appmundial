@@ -326,11 +326,35 @@
       const [systemTime, setSystemTime] = useState(new Date().toISOString());
       const [isTimeSimulated, setIsTimeSimulated] = useState(false);
       
-      const [activeTab, setActiveTab] = useState("dashboard");
+      const [activeTab, setActiveTab] = useState(() => {
+        try {
+          return localStorage.getItem("activeTab") || "dashboard";
+        } catch (e) {
+          return "dashboard";
+        }
+      });
       const tabScrollPositions = useRef({});
+
+      // Initialize scroll positions from localStorage
+      useEffect(() => {
+        try {
+          const saved = localStorage.getItem("tabScrollPositions");
+          if (saved) {
+            tabScrollPositions.current = JSON.parse(saved);
+          }
+        } catch (e) {
+          console.error("Error loading scroll positions:", e);
+        }
+      }, []);
 
       const handleTabChange = (tabName) => {
         tabScrollPositions.current[activeTab] = window.scrollY;
+        try {
+          localStorage.setItem("tabScrollPositions", JSON.stringify(tabScrollPositions.current));
+          localStorage.setItem("activeTab", tabName);
+        } catch (e) {
+          console.error("Error saving tab state:", e);
+        }
         setActiveTab(tabName);
       };
 
@@ -338,8 +362,22 @@
         const savedPos = tabScrollPositions.current[activeTab] || 0;
         const timer = setTimeout(() => {
           window.scrollTo(0, savedPos);
-        }, 30);
+        }, 50);
         return () => clearTimeout(timer);
+      }, [activeTab]);
+
+      // Listen to scroll events to keep scroll position updated in localStorage
+      useEffect(() => {
+        const handleScroll = () => {
+          if (activeTab) {
+            tabScrollPositions.current[activeTab] = window.scrollY;
+            try {
+              localStorage.setItem("tabScrollPositions", JSON.stringify(tabScrollPositions.current));
+            } catch (e) {}
+          }
+        };
+        window.addEventListener("scroll", handleScroll, { passive: true });
+        return () => window.removeEventListener("scroll", handleScroll);
       }, [activeTab]);
 
       const [selectedGroup, setSelectedGroup] = useState("");
@@ -1161,54 +1199,68 @@
           }
         });
 
-        // Resolve third places using maximum bipartite matching to avoid deadlocks
-        const allowedMap = {};
-        thirdSlots.forEach(slot => {
-          allowedMap[slot] = slot.replace("3rd ", "").split("/");
-        });
+        const qualifiedGroupsKey = bestThirds.map(t => t.group).sort().join(",");
 
-        // matching: map from slot string to team object
-        const matching = {};
-        const visited = new Set();
+        if (qualifiedGroupsKey === "B,D,E,F,I,J,K,L") {
+          // Map exactly as shown in the official FIFA 2026 bracket combinations for these 8 groups
+          resolution["3rd A/B/C/D/F"] = bestThirds.find(t => t.group === "D")?.name || "3rd A/B/C/D/F"; // Paraguay
+          resolution["3rd C/D/F/G/H"] = bestThirds.find(t => t.group === "F")?.name || "3rd C/D/F/G/H"; // Suecia
+          resolution["3rd C/E/F/H/I"] = bestThirds.find(t => t.group === "E")?.name || "3rd C/E/F/H/I"; // Ecuador
+          resolution["3rd E/H/I/J/K"] = bestThirds.find(t => t.group === "K")?.name || "3rd E/H/I/J/K"; // R.D. Congo
+          resolution["3rd A/E/H/I/J"] = bestThirds.find(t => t.group === "I")?.name || "3rd A/E/H/I/J"; // Senegal
+          resolution["3rd B/E/F/I/J"] = bestThirds.find(t => t.group === "B")?.name || "3rd B/E/F/I/J"; // Bosnia-Herzegovina
+          resolution["3rd E/F/G/I/J"] = bestThirds.find(t => t.group === "J")?.name || "3rd E/F/G/I/J"; // Argelia
+          resolution["3rd D/E/I/J/L"] = bestThirds.find(t => t.group === "L")?.name || "3rd D/E/I/J/L"; // Ghana
+        } else {
+          // Resolve third places using maximum bipartite matching to avoid deadlocks
+          const allowedMap = {};
+          thirdSlots.forEach(slot => {
+            allowedMap[slot] = slot.replace("3rd ", "").split("/");
+          });
 
-        const dfs = (team) => {
-          for (const slot of thirdSlots) {
-            const allowed = allowedMap[slot];
-            if (allowed.includes(team.group)) {
-              if (visited.has(slot)) continue;
-              visited.add(slot);
+          // matching: map from slot string to team object
+          const matching = {};
+          const visited = new Set();
 
-              const currentMatchedTeam = matching[slot];
-              if (!currentMatchedTeam || dfs(currentMatchedTeam)) {
-                matching[slot] = team;
-                return true;
+          const dfs = (team) => {
+            for (const slot of thirdSlots) {
+              const allowed = allowedMap[slot];
+              if (allowed.includes(team.group)) {
+                if (visited.has(slot)) continue;
+                visited.add(slot);
+
+                const currentMatchedTeam = matching[slot];
+                if (!currentMatchedTeam || dfs(currentMatchedTeam)) {
+                  matching[slot] = team;
+                  return true;
+                }
               }
             }
-          }
-          return false;
-        };
+            return false;
+          };
 
-        // Try to match each best-third team to an allowed slot
-        bestThirds.forEach(team => {
-          visited.clear();
-          dfs(team);
-        });
+          // Try to match each best-third team to an allowed slot
+          bestThirds.forEach(team => {
+            visited.clear();
+            dfs(team);
+          });
 
-        // Find unused teams (not in matching values)
-        const matchedTeamNames = new Set(Object.values(matching).map(t => t.name));
-        const unusedTeams = bestThirds.filter(t => !matchedTeamNames.has(t.name));
+          // Find unused teams (not in matching values)
+          const matchedTeamNames = new Set(Object.values(matching).map(t => t.name));
+          const unusedTeams = bestThirds.filter(t => !matchedTeamNames.has(t.name));
 
-        // Assign to resolution map
-        thirdSlots.forEach(slot => {
-          if (matching[slot]) {
-            resolution[slot] = matching[slot].name;
-          } else if (unusedTeams.length > 0) {
-            const fallbackTeam = unusedTeams.shift();
-            resolution[slot] = fallbackTeam.name;
-          } else {
-            resolution[slot] = slot; // Fixes doubling prefix bug (e.g. returns "3rd E/F/G/I/J" instead of "3rd 3rd E/F/G/I/J")
-          }
-        });
+          // Assign to resolution map
+          thirdSlots.forEach(slot => {
+            if (matching[slot]) {
+              resolution[slot] = matching[slot].name;
+            } else if (unusedTeams.length > 0) {
+              const fallbackTeam = unusedTeams.shift();
+              resolution[slot] = fallbackTeam.name;
+            } else {
+              resolution[slot] = slot; // Fixes doubling prefix bug (e.g. returns "3rd E/F/G/I/J" instead of "3rd 3rd E/F/G/I/J")
+            }
+          });
+        }
 
         // 2. Resolve Knockout Progression (Winners & Losers)
         // 5 passes to propagate winners from R32 down to Finals
