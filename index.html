@@ -1468,6 +1468,13 @@
                 <span>Posiciones Grupos</span>
               </button>
               <button
+                onClick={() => handleTabChange("bracket")}
+                className={`flex-1 sm:flex-initial flex-shrink-0 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold tracking-wide transition-all ${activeTab === "bracket" ? 'bg-soccer-primary text-soccer-darker font-bold shadow-md shadow-soccer-primary/20' : 'text-soccer-textMuted hover:text-white'}`}
+              >
+                <span className="text-sm">🏆</span>
+                <span>Llaves</span>
+              </button>
+              <button
                 onClick={() => handleTabChange("leaderboards")}
                 className={`flex-1 sm:flex-initial flex-shrink-0 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold tracking-wide transition-all ${activeTab === "leaderboards" ? 'bg-soccer-primary text-soccer-darker font-bold shadow-md shadow-soccer-primary/20' : 'text-soccer-textMuted hover:text-white'}`}
               >
@@ -1522,6 +1529,10 @@
 
             <div className={activeTab === "positions" ? "" : "hidden"}>
               <PositionsTab matches={resolvedMatches} groupOverrides={groupOverrides} />
+            </div>
+
+            <div className={activeTab === "bracket" ? "" : "hidden"}>
+              <BracketTab matches={resolvedMatches} />
             </div>
 
             <div className={activeTab === "leaderboards" ? "" : "hidden"}>
@@ -3528,6 +3539,236 @@
               </button>
             </div>
           </div>
+        </div>
+      );
+    }
+
+    // ----------------------------------------------------
+    // SUB-COMPONENTS: BRACKET TAB (Knockout Bracket Visual)
+    // ----------------------------------------------------
+    function BracketTab({ matches }) {
+      const [side, setSide] = useState('left');
+
+      // Bracket structure: which DB match IDs map to each position
+      // Left side leads to Semifinal 1 (m101), Right side to Semifinal 2 (m102)
+      const BRACKET = {
+        left: {
+          r32: ['m75', 'm78', 'm73', 'm76', 'm88', 'm83', 'm82', 'm81'],
+          r16: ['m89', 'm90', 'm93', 'm94'],
+          qf: ['m97', 'm98'],
+          sf: ['m101']
+        },
+        right: {
+          r32: ['m74', 'm77', 'm79', 'm80', 'm87', 'm86', 'm85', 'm84'],
+          r16: ['m91', 'm92', 'm95', 'm96'],
+          qf: ['m99', 'm100'],
+          sf: ['m102']
+        }
+      };
+
+      // Layout constants
+      const CH = 42, CW = 120, G = 10, CG = 22;
+      const CWG = CW + CG; // column stride
+
+      // Compute vertical positions for each round
+      const positions = useMemo(() => {
+        const r32 = Array.from({ length: 8 }, (_, i) => i * (CH + G));
+        const r16 = Array.from({ length: 4 }, (_, i) => {
+          const c1 = r32[i * 2] + CH / 2;
+          const c2 = r32[i * 2 + 1] + CH / 2;
+          return (c1 + c2) / 2 - CH / 2;
+        });
+        const qf = Array.from({ length: 2 }, (_, i) => {
+          const c1 = r16[i * 2] + CH / 2;
+          const c2 = r16[i * 2 + 1] + CH / 2;
+          return (c1 + c2) / 2 - CH / 2;
+        });
+        const sfC = (qf[0] + CH / 2 + qf[1] + CH / 2) / 2;
+        return { r32, r16, qf, sf: [sfC - CH / 2] };
+      }, []);
+
+      const totalH = 8 * CH + 7 * G;
+      const totalW = 4 * CWG - CG;
+
+      const getMatch = (id) => matches.find(m => m.id === id);
+
+      // ---- Compact Match Cell ----
+      const Cell = ({ matchId, top, left }) => {
+        const m = getMatch(matchId);
+        if (!m) return null;
+        const hc = TEAM_COUNTRY_CODES[m.home_team_name];
+        const ac = TEAM_COUNTRY_CODES[m.away_team_name];
+        const fin = m.status === 'Finished';
+        const hs = fin ? parseInt(m.home_score) : null;
+        const as2 = fin ? parseInt(m.away_score) : null;
+        const hw = fin && (hs > as2 || (hs === as2 && m.penalties_winner === 'home'));
+        const aw = fin && (as2 > hs || (hs === as2 && m.penalties_winner === 'away'));
+
+        const teamRow = (code, name, score, won, lost) => (
+          <div className={`flex items-center gap-1.5 px-2 text-[10px] leading-none transition-colors ${
+            won ? 'bg-emerald-500/15 text-emerald-300 font-bold' : lost ? 'text-slate-500' : 'text-slate-200'
+          }`} style={{ height: CH / 2 }}>
+            {code
+              ? <img src={`https://flagcdn.com/16x12/${code}.png`} className="w-4 h-3 object-cover rounded-sm flex-shrink-0 shadow-sm" alt="" />
+              : <div className="w-4 h-3 bg-slate-700/50 rounded-sm flex-shrink-0 flex items-center justify-center text-[6px] text-slate-600">?</div>}
+            <span className="flex-1 truncate">{name}</span>
+            {fin && <span className="font-mono font-bold text-[11px]">{score}</span>}
+          </div>
+        );
+
+        return (
+          <div style={{ position: 'absolute', top, left, width: CW, height: CH }}
+               className="rounded-md overflow-hidden border border-soccer-border bg-gradient-to-r from-soccer-card to-slate-900/80 shadow-lg shadow-black/20 z-10 hover:border-soccer-primary/40 transition-colors">
+            {teamRow(hc, m.home_team_name, m.home_score, hw, aw)}
+            <div className="h-px bg-soccer-border/40" />
+            {teamRow(ac, m.away_team_name, m.away_score, aw, hw)}
+          </div>
+        );
+      };
+
+      // ---- Connector lines between rounds ----
+      const drawConnectors = (srcPos, dstPos, srcCol) => {
+        const elems = [];
+        for (let i = 0; i < dstPos.length; i++) {
+          const y1 = srcPos[i * 2] + CH / 2;
+          const y2 = srcPos[i * 2 + 1] + CH / 2;
+          const ym = dstPos[i] + CH / 2;
+          const x1 = srcCol * CWG + CW;
+          const x2 = (srcCol + 1) * CWG;
+          const xm = (x1 + x2) / 2;
+          const lc = "bg-slate-600/60";
+          elems.push(
+            <div key={`a${srcCol}${i}`} style={{ position: 'absolute', top: y1, left: x1, width: xm - x1, height: 1 }} className={lc} />,
+            <div key={`b${srcCol}${i}`} style={{ position: 'absolute', top: y2, left: x1, width: xm - x1, height: 1 }} className={lc} />,
+            <div key={`c${srcCol}${i}`} style={{ position: 'absolute', top: Math.min(y1, y2), left: xm, width: 1, height: Math.abs(y2 - y1) + 1 }} className={lc} />,
+            <div key={`d${srcCol}${i}`} style={{ position: 'absolute', top: ym, left: xm, width: x2 - xm, height: 1 }} className={lc} />
+          );
+        }
+        return elems;
+      };
+
+      const activeSide = BRACKET[side];
+      const rounds = [
+        { ids: activeSide.r32, pos: positions.r32 },
+        { ids: activeSide.r16, pos: positions.r16 },
+        { ids: activeSide.qf, pos: positions.qf },
+        { ids: activeSide.sf, pos: positions.sf },
+      ];
+      const labels = ['Dieciseisavos', 'Octavos', 'Cuartos', 'Semifinal'];
+
+      const finalMatch = getMatch('m104');
+      const thirdMatch = getMatch('m103');
+
+      // Helper for final-section team display
+      const FinalTeam = ({ name, size }) => {
+        const code = TEAM_COUNTRY_CODES[name];
+        const isBig = size === 'lg';
+        return (
+          <div className="text-center" style={{ minWidth: isBig ? 70 : 50 }}>
+            {code
+              ? <img src={`https://flagcdn.com/${isBig ? '48x36' : '24x18'}/${code}.png`}
+                     className={`${isBig ? 'w-10 h-7' : 'w-6 h-4'} mx-auto rounded shadow-md mb-1`} alt="" />
+              : <div className={`${isBig ? 'w-10 h-7' : 'w-6 h-4'} mx-auto rounded bg-slate-800 mb-1 flex items-center justify-center text-[7px] text-slate-500`}>?</div>}
+            <span className={`${isBig ? 'text-[10px]' : 'text-[9px]'} font-bold text-white block truncate`}>{name}</span>
+          </div>
+        );
+      };
+
+      return (
+        <div className="space-y-5">
+          {/* Header */}
+          <div className="text-center">
+            <h2 className="text-base font-extrabold text-white font-display flex items-center justify-center gap-2">
+              <span className="text-xl">🏆</span> Llaves del Mundial 2026
+            </h2>
+            <p className="text-[10px] text-soccer-textMuted mt-1">Desliza horizontalmente para ver todas las fases →</p>
+          </div>
+
+          {/* Side Toggle */}
+          <div className="flex bg-slate-950 p-1 rounded-lg border border-soccer-border text-xs">
+            <button onClick={() => setSide('left')}
+              className={`flex-1 py-2 px-3 rounded-md font-bold tracking-wide transition-all ${
+                side === 'left'
+                  ? 'bg-soccer-primary text-soccer-darker shadow-md shadow-soccer-primary/20'
+                  : 'text-soccer-textMuted hover:text-white'
+              }`}>
+              ⬅ Cuadro A
+            </button>
+            <button onClick={() => setSide('right')}
+              className={`flex-1 py-2 px-3 rounded-md font-bold tracking-wide transition-all ${
+                side === 'right'
+                  ? 'bg-soccer-primary text-soccer-darker shadow-md shadow-soccer-primary/20'
+                  : 'text-soccer-textMuted hover:text-white'
+              }`}>
+              Cuadro B ➡
+            </button>
+          </div>
+
+          {/* Bracket Visual */}
+          <div className="overflow-x-auto pb-3 -mx-1 px-1 scrollbar-none" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <div style={{ width: totalW + 8, height: totalH + 28, position: 'relative', marginTop: 22 }}>
+              {/* Round labels */}
+              {labels.map((lbl, i) => (
+                <div key={lbl} style={{ position: 'absolute', left: i * CWG, top: -18, width: CW }}
+                     className="text-[7px] uppercase text-soccer-primary/60 font-extrabold tracking-widest text-center">
+                  {lbl}
+                </div>
+              ))}
+              {/* Match cells */}
+              {rounds.map((round, ci) =>
+                round.ids.map((id, mi) => (
+                  <Cell key={id} matchId={id} top={round.pos[mi]} left={ci * CWG} />
+                ))
+              )}
+              {/* Connector lines */}
+              {drawConnectors(positions.r32, positions.r16, 0)}
+              {drawConnectors(positions.r16, positions.qf, 1)}
+              {drawConnectors(positions.qf, positions.sf, 2)}
+            </div>
+          </div>
+
+          {/* Grand Final */}
+          {finalMatch && (
+            <div className="glass rounded-2xl p-4 border border-soccer-accent/30 relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-r from-soccer-accent/5 via-transparent to-soccer-accent/5 pointer-events-none" />
+              <h3 className="text-[10px] font-extrabold text-soccer-accent uppercase tracking-widest mb-3 text-center flex items-center justify-center gap-1.5 relative z-10">
+                🏆 Gran Final — 19 de Julio
+              </h3>
+              <div className="flex items-center justify-center gap-5 relative z-10">
+                <FinalTeam name={finalMatch.home_team_name} size="lg" />
+                <div className="text-center px-1">
+                  {finalMatch.status === 'Finished'
+                    ? <span className="text-xl font-black text-white">{finalMatch.home_score} — {finalMatch.away_score}</span>
+                    : <span className="text-base font-black text-soccer-accent/50">VS</span>}
+                </div>
+                <FinalTeam name={finalMatch.away_team_name} size="lg" />
+              </div>
+            </div>
+          )}
+
+          {/* 3rd Place */}
+          {thirdMatch && (
+            <div className="glass rounded-xl p-3 border border-soccer-border text-center">
+              <h3 className="text-[9px] font-bold text-soccer-textMuted uppercase tracking-wider mb-2">🥉 Tercer Puesto — 18 de Julio</h3>
+              <div className="flex items-center justify-center gap-3 text-[10px]">
+                <div className="flex items-center gap-1.5">
+                  {TEAM_COUNTRY_CODES[thirdMatch.home_team_name]
+                    ? <img src={`https://flagcdn.com/16x12/${TEAM_COUNTRY_CODES[thirdMatch.home_team_name]}.png`} className="w-4 h-3 rounded-sm shadow-sm" alt="" />
+                    : <div className="w-4 h-3 bg-slate-700 rounded-sm" />}
+                  <span className="font-semibold text-slate-300">{thirdMatch.home_team_name}</span>
+                </div>
+                <span className="text-soccer-textMuted font-bold">
+                  {thirdMatch.status === 'Finished' ? `${thirdMatch.home_score} — ${thirdMatch.away_score}` : 'vs'}
+                </span>
+                <div className="flex items-center gap-1.5">
+                  {TEAM_COUNTRY_CODES[thirdMatch.away_team_name]
+                    ? <img src={`https://flagcdn.com/16x12/${TEAM_COUNTRY_CODES[thirdMatch.away_team_name]}.png`} className="w-4 h-3 rounded-sm shadow-sm" alt="" />
+                    : <div className="w-4 h-3 bg-slate-700 rounded-sm" />}
+                  <span className="font-semibold text-slate-300">{thirdMatch.away_team_name}</span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       );
     }
